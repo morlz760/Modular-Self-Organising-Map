@@ -1,0 +1,29 @@
+def classify(som, x_test, x_train, y_train):
+    winmap = som.labels_map(x_train, y_train)
+    default_class = np.sum(list(winmap.values())).most_common()[0][0]
+    result = []
+    for d in x_test:
+        win_position = som.winner(d)
+        if win_position in winmap:
+            result.append(winmap[win_position].most_common()[0][0])
+        else:
+            result.append(default_class)
+    return result
+
+import pandas as pd
+from minisom import MiniSom
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+import math
+
+columns=['area', 'perimeter', 'compactness', 'length_kernel', 'width_kernel',
+                   'asymmetry_coefficient', 'length_kernel_groove', 'target']
+
+data = pd.read_csv('https://archive.ics.uci.edu/ml/machine-learning-databases/00236/seeds_dataset.txt', 
+                    names=columns, 
+                   sep='\t+', engine='python')
+labels = data['target'].values
+label_names = {1:'Kama', 2:'Rosa', 3:'Canadian'}
+data = data[data.columns[0:4]]
+

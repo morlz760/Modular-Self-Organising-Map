@@ -1,0 +1,146 @@
+import math
+
+import numpy as np
+import pandas as pd
+from minisom import MiniSom
+from sklearn.metrics import classification_report
+from sklearn.model_selection import train_test_split
+
+
+# Classifty the output out the function
+def classify(som, x_test, x_train, y_train):
+    winmap = som.labels_map(x_train, y_train)
+    default_class = np.sum(list(winmap.values())).most_common()[0][0]
+    result = []
+    for d in x_test:
+        win_position = som.winner(d)
+        if win_position in winmap:
+            result.append(winmap[win_position].most_common()[0][0])
+        else:
+            result.append(default_class)
+    return result
+
+# Create and train a SOM this is the old version that works, 
+# Below I'm going to add some functionality that will allow it 
+# to ingest the DF from a convolv layer.
+# def create_train_som(data, n_features):
+#     # Create SOM dimensions
+#     som_nurons = int((math.sqrt(5*math.sqrt(n_features))))*2
+#     x = som_nurons
+#     y = som_nurons
+#     #Create and train SOM
+#     som = MiniSom(x, y, n_features, sigma=0.3, learning_rate=0.5) # initialization of x X y som
+#     som.random_weights_init(data)
+#     som.train_random(data,100, verbose=False) # training with 100 iterations
+#     return som
+
+def unnest_data(data):
+        values = data.values
+        unnested_data = np.array([np.concatenate(i) for i in values])
+        return(unnested_data)
+
+# Create and train a SOM
+def create_train_som(data, n_features, convolutional_layer = False):
+    # Create SOM dimensions
+    if convolutional_layer:
+        data = unnest_data(data)
+        n_features = n_features*2
+    else:
+        data = data
+    # Create SOM dimensions
+    som_nurons = int((math.sqrt(5*math.sqrt(n_features))))*2
+    x = som_nurons
+    y = som_nurons
+    #Create and train SOM
+    som = MiniSom(x, y, n_features, sigma=0.3, learning_rate=0.5) # initialization of x X y som
+    som.random_weights_init(data)
+    som.train_random(data,100, verbose=False) # training with 100 iterations
+    return som
+
+
+    
+def data_prep(data):
+    data_normal = (data - np.mean(data, axis=0)) / np.std(data, axis=0)
+    data_normal = data_normal.values
+    return(data_normal)
+
+def convert_coordinants(coordinants, som_y_size):
+    x = coordinants[0]
+    y = coordinants[1]
+    unique_num = x * som_y_size + y
+    return(unique_num)
+
+def data_vectorisation(data):
+    data_values_array = data.values
+    if len(data.columns) == 1:
+        data_values_array = np.array([[i] for i in data_values_array])
+        return(data_values_array)
+    else:
+        return(data_values_array)
+
+def train_som_layer(data, feature_collections):
+    # create a dictionary to store the trained SOM
+    trained_soms = {}
+    # For each feature in the data set we will train a SOM. I intend to update this so that we can pass this function a list of combos we want to 
+    # train our som's on.
+    for feature_set in feature_collections:
+        print("Training SOM on ", feature_set)
+        print(len(feature_set))
+        train_value = data[feature_set]
+        # prepare the data
+        train_value_array = train_value.values
+        observation_key = "".join(map(str,feature_set))
+        som = create_train_som(train_value_array, len(feature_set))
+        trained_soms.setdefault(observation_key,[]).append(som)
+    return(trained_soms)
+
+# The create convolution layer takes the input data the traind soms and the feature collections to create a convolutional layer. 
+# This means that you'll use this function in the creation of the MDSOM and then also in the testing process. The Traind_SOMS layer is the 
+# static element, the convolutional layer is desitned to change depending on the data that's fed into it. So in the testing process you'll
+# have to create a new convolutional layer 
+def create_convolution_layer(data, trained_soms, feature_collections):
+    # Create empty dataframe to store the winning nodes from our trained SOM's
+    dataframe = pd.DataFrame()
+    # loop through each of the featuresets that have been used to build the SOM's to extarct the output from these values
+    # that will be used to create the convolv layer.
+    for feature_set in feature_collections:
+        # So for each feature set extarct the corrosponding data from the training data.
+        print("Creating convolutional layer for: ", feature_set)
+        train_value = data[feature_set]        
+        # Convert that data into an array, if the feature set is only one feature we will need to put it into an array
+        # so that we are able to pass it to our SOM and extrac the values.
+        train_value_array = train_value.values
+        # extract the SOM that was trained on the given feature(s)
+        observation_key = "".join(map(str,feature_set))
+        som = trained_soms.get(observation_key)[0]
+        # extract the distance from weights
+        distance_map = som._distance_from_weights(train_value_array)
+        # Create a winning node array to store the winning nodes for the feature.
+        winning_nodes = []
+        # loop through the array of observations and extract the winning node and its distance for the given observation.
+        for observation in train_value_array:
+            winning_pos = som.winner(observation)
+            node_distance = distance_map[winning_pos]
+            # We now convert this coordinant into a numerical value so we can feed it to our next layer
+            node_value = convert_coordinants(winning_pos, 2)
+            output = [node_value, node_distance] 
+            winning_nodes.append(output)
+        dataframe[observation_key] = winning_nodes
+    return(dataframe)
+
+# This function is used to evaluate the node purity of the output. One way to measure the effecacy of the algo.
+def evaluate_purity(som, X_train, y_train):
+    # Extract the winning node for each obseervation
+    winmap = som.labels_map(X_train, y_train)    
+    # Create a DF based of the winmap and transpose for easier data manipulation
+    winmapDF = pd.DataFrame.from_dict(winmap)
+    winmapDFT = winmapDF.T
+    # Pull the max value for that node
+    winmapDFT["max_val_node"] = winmapDFT.max(axis=1)
+    # Create a column that has the total observations for each node
+    winmapDFT["total_obs_node"] = winmapDFT.iloc[:, 0:3].sum(axis=1)
+    # Calculate the simple node purity (a more complex purity might include some sort of penalty for having moltiple obs set off)
+    winmapDFT["node_purity"] = winmapDFT["max_val_node"] / winmapDFT["total_obs_node"]
+    # Calculate the overall purity for the layer
+    node_purity = winmapDFT['node_purity'].mean(axis=0)
+    return(node_purity)
