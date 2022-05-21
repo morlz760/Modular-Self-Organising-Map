@@ -21,9 +21,8 @@ sampled_matrix = get_sub_matrices(x_train[1], kernel_size)
 
 
   mmk0p;
- \
- \
-
+ 
+# tbis is sa 
 
  ]='[;[p;.lo9kim ,u7hnbytgv fr4cd esxwaz	Q		AQZSW2DECFD32WAQ	q`1alop90;
  -.≤'
