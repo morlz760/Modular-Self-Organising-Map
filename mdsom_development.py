@@ -461,11 +461,66 @@ X_test_area = np.array([[i] for i in X_train['area'].values])
 
 
 
+# _________________________ Alllowing new data to be add at higher level convolutions ____________________________
 
 
 
+X_test_column_names
+
+# Create our first layer of SOMS
+trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = X_test_column_names)
+# Create our training convolutional layer that is used to blend the results from our layer 1 SOM's
+convolv_layer_one_train = create_convolution_layer(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = X_test_column_names)
+
+# Create a second layer som based off our initial layer 
+layer_2_feature_collection = pd.array([["area", "perimeter"], ["compactness", "length_kernel"], ["width_kernel","asymmetry_coefficient"]])
+trained_soms_layer_2 = train_som_layer(data = convolv_layer_one_train, feature_collections = layer_2_feature_collection, convolutional_layer=True)
+convolv_layer_two_train = create_convolution_layer(data = convolv_layer_one_train, trained_soms = trained_soms_layer_2,  feature_collections = layer_2_feature_collection, convolutional_layer=True)
+
+# Create the final layer
+final_som = create_train_som(data=convolv_layer_two_train, n_features = convolv_layer_two_train.shape[1], convolutional_layer=True)
+
+# Create the testing layers
+convolv_layer_one_test = create_convolution_layer(data = X_test, trained_soms = trained_soms_layer_1,  feature_collections = X_test_column_names)
+convolv_layer_two_test = create_convolution_layer(data = convolv_layer_one_test, trained_soms = trained_soms_layer_2,  feature_collections = layer_2_feature_collection, convolutional_layer=True)
+
+evaluate_purity(final_som, convolv_layer_two_test, y_test, convolutional_layer=True)
 
 
+convolv_layer_2_complete_train = create_convolution_layer(data = convolv_layer_one_train_ab, trained_soms = trained_soms_layer_2_complete,  feature_collections = layer_2ab_feature_collection)
 
 
-
+def create_convolution_layer(data, trained_soms, feature_collections, convolutional_layer=False):
+    # Create empty dataframe to store the winning nodes from our trained SOM's
+    dataframe = pd.DataFrame()
+    # loop through each of the featuresets that have been used to build the SOM's to extarct the output from these values
+    # that will be used to create the convolv layer.
+    for feature_set in feature_collections:
+        # So for each feature set extarct the corrosponding data from the training data.
+        print("Creating convolutional layer for: ", feature_set)
+        train_value = data[feature_set]
+        if len(train_value.dtypes.unique()) > 1:
+            print("Your feature sets have incompatable data formats")
+        if (train_value.dtypes == 'O').all():
+            train_value_array = unnest_data(train_value)
+        else:
+            train_value_array = train_value.values
+        # Convert that data into an array, if the feature set is only one feature we will need to put it into an array
+        # so that we are able to pass it to our SOM and extrac the values.
+        # extract the SOM that was trained on the given feature(s)
+        observation_key = "".join(map(str,feature_set))
+        som = trained_soms.get(observation_key)[0]
+        # extract the distance from weights
+        distance_map = som._distance_from_weights(train_value_array)
+        # Create a winning node array to store the winning nodes for the feature.
+        winning_nodes = []
+        # loop through the array of observations and extract the winning node and its distance for the given observation.
+        for observation in train_value_array:
+            winning_pos = som.winner(observation)
+            node_distance = distance_map[winning_pos]
+            # We now convert this coordinant into a numerical value so we can feed it to our next layer
+            node_value = convert_coordinants(winning_pos, 2)
+            output = [node_value, node_distance] 
+            winning_nodes.append(output)
+        dataframe[observation_key] = winning_nodes
+    return(dataframe)

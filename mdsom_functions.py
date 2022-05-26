@@ -105,7 +105,7 @@ def train_som_layer(data, feature_collections, convolutional_layer = False):
 # This means that you'll use this function in the creation of the MDSOM and then also in the testing process. The Traind_SOMS layer is the 
 # static element, the convolutional layer is desitned to change depending on the data that's fed into it. So in the testing process you'll
 # have to create a new convolutional layer 
-def create_convolution_layer(data, trained_soms, feature_collections, convolutional_layer=False):
+def create_convolution_layer(data, trained_soms, feature_collections):
     # Create empty dataframe to store the winning nodes from our trained SOM's
     dataframe = pd.DataFrame()
     # loop through each of the featuresets that have been used to build the SOM's to extarct the output from these values
@@ -113,11 +113,11 @@ def create_convolution_layer(data, trained_soms, feature_collections, convolutio
     for feature_set in feature_collections:
         # So for each feature set extarct the corrosponding data from the training data.
         print("Creating convolutional layer for: ", feature_set)
-        train_value = data[feature_set]  
-        print(train_value)      
-        if convolutional_layer:
+        train_value = data[feature_set]
+        if len(train_value.dtypes.unique()) > 1:
+            print("Your feature sets have incompatable data formats")
+        if (train_value.dtypes == 'O').all():
             train_value_array = unnest_data(train_value)
-            print("worked")
         else:
             train_value_array = train_value.values
         # Convert that data into an array, if the feature set is only one feature we will need to put it into an array
@@ -141,6 +141,9 @@ def create_convolution_layer(data, trained_soms, feature_collections, convolutio
     return(dataframe)
 
 # This function is used to evaluate the node purity of the output. One way to measure the effecacy of the algo.
+# We need to figure out how to apply this purity function to SOM's that have differing number of nodes
+# SOM's with more NODES will inevidebly have a higher purity raiting 
+
 def evaluate_purity(som, X_train, y_train, convolutional_layer=False):
     # Unnest training data
     if convolutional_layer:
