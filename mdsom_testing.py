@@ -44,6 +44,7 @@ X_test_column_names = np.array([[i] for i in X_train.columns ])
 # - Visualisation
 # - 
 
+# Our benchmark SOM will always have the same number of nodes as our final SOM .
 
 # ________________________________ CREATE A SOM TRAINED OFF ALL VALUES ____________________________________
 
@@ -155,22 +156,14 @@ convolv_layer_one_train_ab['length_kernel_groove'] = X_train_b.values
 layer_2ab_feature_collection = pd.array([["area", "perimeter"], ["compactness", "length_kernel"], ["width_kernel","asymmetry_coefficient"], ["length_kernel_groove"]])
 
 # Create our new convolutional layer
-convolv_layer_2a_train = create_convolution_layer(data = convolv_layer_one_train_ab, trained_soms = trained_soms_layer_2_complete,  feature_collections = layer_2ab_feature_collection)
-
+convolv_layer_2_complete_train = create_convolution_layer(data = convolv_layer_one_train_ab, trained_soms = trained_soms_layer_2_complete,  feature_collections = layer_2ab_feature_collection)
 
 # Do i create a merge function?
 
-
-
-convolv_layer_two_train = 
-
-
-
-convolv_layer_two_train = create_convolution_layer(data = convolv_layer_one_train, trained_soms = trained_soms_layer_2,  feature_collections = layer_2_feature_collection, convolutional_layer=True)
-
-
 # Create the final layer
-final_som = create_train_som(data=convolv_layer_two_train, n_features = convolv_layer_two_train.shape[1], convolutional_layer=True)
+final_som = create_train_som(data=convolv_layer_2_complete_train, n_features = convolv_layer_2_complete_train.shape[1], convolutional_layer=True)
+
+evaluate_purity(final_som, convolv_layer_2_complete_train, y_train, convolutional_layer=True)
 
 # Create the testing layers
 convolv_layer_one_test = create_convolution_layer(data = X_test, trained_soms = trained_soms_layer_1,  feature_collections = X_test_column_names)
