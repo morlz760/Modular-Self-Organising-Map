@@ -490,7 +490,7 @@ evaluate_purity(final_som, convolv_layer_two_test, y_test, convolutional_layer=T
 convolv_layer_2_complete_train = create_convolution_layer(data = convolv_layer_one_train_ab, trained_soms = trained_soms_layer_2_complete,  feature_collections = layer_2ab_feature_collection)
 
 
-def create_convolution_layer(data, trained_soms, feature_collections, convolutional_layer=False):
+def create_convolution_layer(data, trained_soms, feature_collections, normalise=False):
     # Create empty dataframe to store the winning nodes from our trained SOM's
     dataframe = pd.DataFrame()
     # loop through each of the featuresets that have been used to build the SOM's to extarct the output from these values
@@ -510,17 +510,51 @@ def create_convolution_layer(data, trained_soms, feature_collections, convolutio
         # extract the SOM that was trained on the given feature(s)
         observation_key = "".join(map(str,feature_set))
         som = trained_soms.get(observation_key)[0]
+        # Extract the y dimension of the given SOM.
+        som_y_dim = max(som._neigy) + 1
+        print("Y som dims: ",som_y_dim)
         # extract the distance from weights
         distance_map = som._distance_from_weights(train_value_array)
         # Create a winning node array to store the winning nodes for the feature.
-        winning_nodes = []
+        winning_nodes_a = []
+        winning_nodes_b = []
         # loop through the array of observations and extract the winning node and its distance for the given observation.
         for observation in train_value_array:
             winning_pos = som.winner(observation)
             node_distance = distance_map[winning_pos]
-            # We now convert this coordinant into a numerical value so we can feed it to our next layer
-            node_value = convert_coordinants(winning_pos, 2)
-            output = [node_value, node_distance] 
-            winning_nodes.append(output)
-        dataframe[observation_key] = winning_nodes
+            # We now convert this coordinant into a numerical value so we can feed it to our next layer, to to do this properly
+            # we need the y value of the SOM as that helps us convery coords to a single didget.
+            node_value = convert_coordinants(winning_pos, som_y_dim)
+            output_a = node_value
+            output_b = node_distance
+            winning_nodes_a.append(output_a)
+            winning_nodes_b.append(output_b)
+        if normalise:
+            print(winning_nodes_a)
+            winning_nodes_a = preprocessing.normalize(winning_nodes_a, axis = 0)
+            print(winning_nodes_a)
+            winning_nodes_b = preprocessing.normalize(winning_nodes_b, axis = 0)
+            winning_nodes_normalised = np.array(list(zip(winning_nodes_a, winning_nodes_b)))
+            print(winning_nodes_normalised)
+            dataframe[observation_key] = winning_nodes_normalised
+        else:
+            winning_nodes = zip(winning_nodes_a, winning_nodes_b)
+            winning_nodes_out = (list(winning_nodes))
+            # winning_nodes = np.concatenate((winning_nodes_a, winning_nodes_b))
+            print(data_values_array)
+            print(data_values_array.shape)
+            dataframe[observation_key] = winning_nodes
     return(dataframe)
+
+
+convolv_layer_one_train = create_convolution_layer(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
+
+
+
+
+numbers = [1, 2, 3]
+letters = [1, 1, 1]
+zipped = zip(numbers, letters)
+
+np.array(list(zipped)).shape
+list(zipped)

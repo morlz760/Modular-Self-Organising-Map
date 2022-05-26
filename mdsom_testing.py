@@ -21,23 +21,22 @@ d = data[data.columns[0:6]]
 new_d = data[data.columns[6:7]]
 
 names = d.columns
-d = preprocessing.normalize(d, axis=0)
+d = preprocessing.normalize(d, axis=1)
 d_normalised = pd.DataFrame(d, columns=names)
 
 new_names = new_d.columns
-new_d = preprocessing.normalize(new_d, axis=0)
+new_d = preprocessing.normalize(new_d, axis=1)
 new_d_normalised = pd.DataFrame(new_d, columns=new_names)
 
 # Create the test train split of our data.
-X_train, X_test, y_train, y_test = train_test_split(data_normalised, labels)
+X_train, X_test, y_train, y_test = train_test_split(d_normalised, labels)
 
 X_train_b, X_test_b, y_train_b, y_test_b = train_test_split(new_d_normalised, labels)
 
 # Not sure where this is used.....
 # som_shape = [3,3]
 
-# Create out feature collections
-X_test_column_names = np.array([[i] for i in X_train.columns ])
+
 
 # Things we need to think about
 # - Cross validation
@@ -57,20 +56,32 @@ evaluate_purity(standard_som, X_test.values, y_test)
 
 # ________________________________ CREATE A SINGLE LAYER MDSOM ____________________________________
 
+# Create out feature collections
+feature_collections_1 = np.array([[i] for i in X_train.columns ])
+
 # Create our first layer of SOMS
-trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = X_test_column_names)
+trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1)
 
 # Create our training convolutional layer that is used to blend the results from our layer 1 SOM's
-convolv_layer_one_test = create_convolution_layer(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = X_test_column_names)
+convolv_layer_one_train = create_convolution_layer(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = True)
+
+values = convolv_layer_one_train.values
+unnested_data = np.array([np.concatenate(i) for i in values])
+new_names_normalise = convolv_layer_one_train.columns
+unnested_data_normalised = preprocessing.normalize(unnested_data, axis=0)
+new_d_normalised = pd.DataFrame(new_d, columns=new_names)
+
+convolv_layer_one_train_normalised = preprocessing.normalize(convolv_layer_one_train, axis=0)
 
 # Now using the values output from our training cololutional layer (I think I got half way through implementing the addition of the node number as well
 # as the distance from the given node) So now my create train SOM has no idea what to do with the god dam outpuut.
-final_som = create_train_som(data=convolv_layer_one_test, n_features = convolv_layer_one_test.shape[1], convolutional_layer=True)
+final_som = create_train_som(data=convolv_layer_one_train, n_features = convolv_layer_one_train.shape[1], convolutional_layer=True)
 
+evaluate_purity(final_som, convolv_layer_one_train, y_train, convolutional_layer=True)
 # BOOM. We've got our MDSOM. The key elements are the trained soms and the final SOM. 
 
 # Pass our test data through our constructed SOM 
-convolution_layer_test = create_convolution_layer(data=X_test, trained_soms=trained_soms_layer_1, feature_collections = X_test_column_names)
+convolution_layer_test = create_convolution_layer(data=X_test, trained_soms=trained_soms_layer_1, feature_collections = feature_collections_1)
 
 evaluate_purity(final_som, convolution_layer_test, y_test, convolutional_layer=True)
 

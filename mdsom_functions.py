@@ -5,7 +5,7 @@ import pandas as pd
 from minisom import MiniSom
 from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
-
+from sklearn import preprocessing
 
 # Classifty the output out the function
 def classify(som, x_test, x_train, y_train):
@@ -51,14 +51,13 @@ def create_train_som(data, n_features, convolutional_layer = False):
     som_nurons = int((math.sqrt(5*math.sqrt(n_features))))*2
     x = som_nurons
     y = som_nurons
+    print("Som Neurons", x*y)
     #Create and train SOM
     som = MiniSom(x, y, n_features, sigma=0.3, learning_rate=0.5) # initialization of x X y som
     som.random_weights_init(data)
     som.train_random(data,100, verbose=False) # training with 100 iterations
     return som
 
-
-    
 def data_prep(data):
     data_normal = (data - np.mean(data, axis=0)) / np.std(data, axis=0)
     data_normal = data_normal.values
@@ -85,7 +84,6 @@ def train_som_layer(data, feature_collections, convolutional_layer = False):
     # train our som's on.
     for feature_set in feature_collections:
         print("Training SOM on ", feature_set)
-        print(len(feature_set))
         n_features = len(feature_set)
         train_value = data[feature_set]
         # prepare the data
@@ -96,6 +94,7 @@ def train_som_layer(data, feature_collections, convolutional_layer = False):
         else:
             train_value_array = train_value.values
         # train_value_array = train_value
+        print("n features for creating SOM:", n_features)
         observation_key = "".join(map(str,feature_set))
         som = create_train_som(train_value_array, n_features)
         trained_soms.setdefault(observation_key,[]).append(som)
@@ -105,7 +104,7 @@ def train_som_layer(data, feature_collections, convolutional_layer = False):
 # This means that you'll use this function in the creation of the MDSOM and then also in the testing process. The Traind_SOMS layer is the 
 # static element, the convolutional layer is desitned to change depending on the data that's fed into it. So in the testing process you'll
 # have to create a new convolutional layer 
-def create_convolution_layer(data, trained_soms, feature_collections):
+def create_convolution_layer(data, trained_soms, feature_collections, normalise=False):
     # Create empty dataframe to store the winning nodes from our trained SOM's
     dataframe = pd.DataFrame()
     # loop through each of the featuresets that have been used to build the SOM's to extarct the output from these values
@@ -125,6 +124,9 @@ def create_convolution_layer(data, trained_soms, feature_collections):
         # extract the SOM that was trained on the given feature(s)
         observation_key = "".join(map(str,feature_set))
         som = trained_soms.get(observation_key)[0]
+        # Extract the y dimension of the given SOM.
+        som_y_dim = max(som._neigy) + 1
+        print("Y som dims: ",som_y_dim)
         # extract the distance from weights
         distance_map = som._distance_from_weights(train_value_array)
         # Create a winning node array to store the winning nodes for the feature.
@@ -133,11 +135,18 @@ def create_convolution_layer(data, trained_soms, feature_collections):
         for observation in train_value_array:
             winning_pos = som.winner(observation)
             node_distance = distance_map[winning_pos]
-            # We now convert this coordinant into a numerical value so we can feed it to our next layer
-            node_value = convert_coordinants(winning_pos, 2)
+            # We now convert this coordinant into a numerical value so we can feed it to our next layer, to to do this properly
+            # we need the y value of the SOM as that helps us convery coords to a single didget.
+            node_value = convert_coordinants(winning_pos, som_y_dim)
             output = [node_value, node_distance] 
             winning_nodes.append(output)
-        dataframe[observation_key] = winning_nodes
+        if normalise:
+            print(winning_nodes)
+            winning_nodes = preprocessing.normalize(winning_nodes)
+            print(winning_nodes)
+            dataframe[observation_key] = winning_nodes
+        else:
+            dataframe[observation_key] = winning_nodes
     return(dataframe)
 
 # This function is used to evaluate the node purity of the output. One way to measure the effecacy of the algo.
