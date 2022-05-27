@@ -6,13 +6,15 @@
 
 # __________ IMPORT PACKAGES ___________
 
+
+from mdsom_functions import *
 import pandas as pd
-from minisom import MiniSom
+# from minisom import MiniSom
 import numpy as np
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
+# from sklearn.metrics import classification_report
 from sklearn import preprocessing
-import math
+# import math
 
 # def classify(som, x_test, x_train, y_train):
 #     winmap = som.labels_map(x_train, y_train)
@@ -29,6 +31,7 @@ import math
 
 # ____________________________ DATA PREP _____________________________________
 
+# Read in our data and prepare it
 columns=['area', 'perimeter', 'compactness', 'length_kernel', 'width_kernel',
                    'asymmetry_coefficient', 'length_kernel_groove', 'target']
 
@@ -37,8 +40,21 @@ data = pd.read_csv('https://archive.ics.uci.edu/ml/machine-learning-databases/00
                    sep='\t+', engine='python')
 labels = data['target'].values
 label_names = {1:'Kama', 2:'Rosa', 3:'Canadian'}
-data = data[data.columns[0:6]]
+d = data[data.columns[0:6]]
+new_d = data[data.columns[6:7]]
 
+names = d.columns
+d = preprocessing.normalize(d, axis=1)
+d_normalised = pd.DataFrame(d, columns=names)
+
+new_names = new_d.columns
+new_d = preprocessing.normalize(new_d, axis=1)
+new_d_normalised = pd.DataFrame(new_d, columns=new_names)
+
+# Create the test train split of our data.
+X_train, X_test, y_train, y_test = train_test_split(d_normalised, labels)
+
+X_train_b, X_test_b, y_train_b, y_test_b = train_test_split(new_d_normalised, labels)
 
 # Here we will do the two value SOM. 
 
@@ -491,12 +507,8 @@ convolv_layer_2_complete_train = create_convolution_layer(data = convolv_layer_o
 
 
 def create_convolution_layer(data, trained_soms, feature_collections, normalise=False):
-    # Create empty dataframe to store the winning nodes from our trained SOM's
     dataframe = pd.DataFrame()
-    # loop through each of the featuresets that have been used to build the SOM's to extarct the output from these values
-    # that will be used to create the convolv layer.
     for feature_set in feature_collections:
-        # So for each feature set extarct the corrosponding data from the training data.
         print("Creating convolutional layer for: ", feature_set)
         train_value = data[feature_set]
         if len(train_value.dtypes.unique()) > 1:
@@ -505,56 +517,201 @@ def create_convolution_layer(data, trained_soms, feature_collections, normalise=
             train_value_array = unnest_data(train_value)
         else:
             train_value_array = train_value.values
-        # Convert that data into an array, if the feature set is only one feature we will need to put it into an array
-        # so that we are able to pass it to our SOM and extrac the values.
-        # extract the SOM that was trained on the given feature(s)
         observation_key = "".join(map(str,feature_set))
         som = trained_soms.get(observation_key)[0]
-        # Extract the y dimension of the given SOM.
         som_y_dim = max(som._neigy) + 1
         print("Y som dims: ",som_y_dim)
-        # extract the distance from weights
         distance_map = som._distance_from_weights(train_value_array)
-        # Create a winning node array to store the winning nodes for the feature.
-        winning_nodes_a = []
-        winning_nodes_b = []
-        # loop through the array of observations and extract the winning node and its distance for the given observation.
+        winning_node_value = []
+        winning_node_distance = []
         for observation in train_value_array:
             winning_pos = som.winner(observation)
             node_distance = distance_map[winning_pos]
-            # We now convert this coordinant into a numerical value so we can feed it to our next layer, to to do this properly
-            # we need the y value of the SOM as that helps us convery coords to a single didget.
             node_value = convert_coordinants(winning_pos, som_y_dim)
-            output_a = node_value
-            output_b = node_distance
-            winning_nodes_a.append(output_a)
-            winning_nodes_b.append(output_b)
+            winning_node_value.append(node_value)
+            winning_node_distance.append(node_distance)
         if normalise:
-            print(winning_nodes_a)
-            winning_nodes_a = preprocessing.normalize(winning_nodes_a, axis = 0)
-            print(winning_nodes_a)
-            winning_nodes_b = preprocessing.normalize(winning_nodes_b, axis = 0)
-            winning_nodes_normalised = np.array(list(zip(winning_nodes_a, winning_nodes_b)))
-            print(winning_nodes_normalised)
-            dataframe[observation_key] = winning_nodes_normalised
+            winning_node_value_array = pd.array(winning_node_value, dtype=np.int32).reshape(-1,1)
+            winning_node_value_normalised = preprocessing.normalize(winning_node_value_array, axis = 0).flatten()
+            winning_node_distance_array = pd.array(winning_node_distance, dtype=np.float32).reshape(-1,1)
+            winning_node_distance_normalised = preprocessing.normalize(winning_node_distance_array, axis = 0).flatten()
+            winning_nodes = np.array(list(zip(winning_node_value_normalised, winning_node_distance_normalised))).tolist()
+            dataframe[observation_key] = winning_nodes
         else:
-            winning_nodes = zip(winning_nodes_a, winning_nodes_b)
-            winning_nodes_out = (list(winning_nodes))
-            # winning_nodes = np.concatenate((winning_nodes_a, winning_nodes_b))
-            print(data_values_array)
-            print(data_values_array.shape)
+            winning_nodes = np.array(list(zip(winning_node_value, winning_node_distance))).tolist()
             dataframe[observation_key] = winning_nodes
     return(dataframe)
 
+convolv_layer_one_train = create_convolution_layer(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = True)
 
-convolv_layer_one_train = create_convolution_layer(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
+def convolution_normalisation(winning_node_value, winning_node_distance):
+    if normalise:
+        winning_node_value_normalised = preprocessing.normalize(pd.array(winning_node_value), axis = 0)
+        print(winning_node_value_normalised)
+        winning_node_distance_normalised = preprocessing.normalize(winning_node_distance, axis = 0)
+        winning_nodes = np.array(list(zip(winning_node_value_normalised, winning_node_distance_normalised))).tolist()
+        return(winning_nodes)
+    else:
+        winning_nodes = np.array(list(zip(winning_node_value, winning_node_distance))).tolist()
+        return(winning_nodes)
 
 
 
+
+x = [0.0017662778779201943, 0.07034895673057326, 0.10047231651804783, 0.10131880574254164, 0.013162984689549398, 0.04420727692716966, 0.0017662778779201943, 0.17134730219597713, 0.12916503594807136, 0.05829005027014215, 0.07034895673057326, 0.05829005027014215, 0.012978695113854318, 0.05829005027014215, 0.1403774531840087, 0.1403774531840087, 0.11423577338060513, 0.11423577338060513, 0.04420727692716966, 0.17134730219597713, 0.10047231651804783, 0.04420727692716966, 0.1403774531840087, 0.1403774531840087, 0.1403774531840087, 0.10047231651804783, 0.08925989928211055, 0.10047231651804783, 0.17134730219597713, 0.17134730219597713, 0.012978695113854318, 0.10131880574254164, 0.1403774531840087, 0.12916503594807136, 0.04420727692716966, 0.10131880574254164, 0.12916503594807136, 0.05829005027014215, 0.10047231651804783, 0.17134730219597713, 0.04420727692716966, 0.17134730219597713, 0.04394854412582282, 0.08925989928211055, 0.1403774531840087, 0.059136539494635904, 0.11423577338060513, 0.10047231651804783, 0.11540157908551409, 0.11540157908551409, 0.05829005027014215, 0.10047231651804783, 0.013162984689549398, 0.1403774531840087, 0.08925989928211055, 0.0017662778779201943, 0.04394854412582282, 0.08925989928211055, 0.059136539494635904, 0.10047231651804783, 0.059136539494635904, 0.04394854412582282, 0.1403774531840087, 0.07034895673057326, 0.11540157908551409, 0.11423577338060513, 0.17134730219597713, 0.10047231651804783, 0.10047231651804783, 0.12916503594807136, 0.0017662778779201943, 0.012978695113854318, 0.17134730219597713, 0.07034895673057326, 0.17134730219597713, 0.10131880574254164, 0.04420727692716966, 0.10131880574254164, 0.10047231651804783, 0.10131880574254164, 0.059136539494635904, 0.059136539494635904, 0.10047231651804783, 0.08925989928211055, 0.07034895673057326, 0.05829005027014215, 0.04420727692716966, 0.17134730219597713, 0.04394854412582282, 0.04394854412582282, 0.04420727692716966, 0.04394854412582282, 0.11423577338060513, 0.17134730219597713, 0.10047231651804783, 0.07034895673057326, 0.17134730219597713, 0.04394854412582282, 0.04420727692716966, 0.08925989928211055, 0.10047231651804783, 0.07034895673057326, 0.1403774531840087, 0.04394854412582282, 0.059136539494635904, 0.04420727692716966, 0.012978695113854318, 0.04420727692716966, 0.013162984689549398, 0.11540157908551409, 0.07034895673057326, 0.10131880574254164, 0.10131880574254164, 0.08925989928211055, 0.10131880574254164, 0.11423577338060513, 0.10131880574254164, 0.10047231651804783, 0.012978695113854318, 0.04420727692716966, 0.1403774531840087, 0.10047231651804783, 0.1403774531840087, 0.17134730219597713, 0.17134730219597713, 0.05829005027014215, 0.04394854412582282, 0.05829005027014215, 0.013162984689549398, 0.08925989928211055, 0.013162984689549398, 0.013162984689549398, 0.07034895673057326, 0.08925989928211055, 0.013162984689549398, 0.11423577338060513, 0.04420727692716966, 0.17134730219597713, 0.012978695113854318, 0.1403774531840087, 0.013162984689549398, 0.11423577338060513, 0.1403774531840087, 0.1403774531840087, 0.08925989928211055, 0.08925989928211055, 0.10047231651804783, 0.1403774531840087, 0.11423577338060513, 0.08925989928211055, 0.1403774531840087, 0.1403774531840087, 0.17134730219597713, 0.08925989928211055, 0.059136539494635904, 0.1403774531840087, 0.012978695113854318]
+
+x
+
+xa = pd.array(x, dtype=np.float32)
+xa
+
+preprocessing.normalize(xa, axis = 0).flatten()
+
+the_format = [[1, 2], [2, 3]]
 
 numbers = [1, 2, 3]
 letters = [1, 1, 1]
 zipped = zip(numbers, letters)
+x = np.array(list(zipped))
+y = (x.tolist())
+
+x = np.dstack((numbers,letters))
+
+t = np.column_stack((numbers,letters))
+
+t.shape
+
+dataframe = pd.DataFrame()
+
+dataframe["x"] = y
 
 np.array(list(zipped)).shape
-list(zipped)
+x = np.array(list(zipped))
+y = (x.tolist())
+y
+
+
+
+
+winning_node_value = []
+
+a = 1.0
+b = 2.3
+winning_node_value.append(a)
+winning_node_value.append(b)
+
+
+winning_node_value.append(1)
+winning_node_value.append(2)
+
+
+
+
+
+# Train the SOM
+standard_som = create_train_som(data=X_train.values, n_features = X_train.shape[1], convolutional_layer=False)
+
+# Single layer SOM 
+evaluate_purity(standard_som, X_test.values, y_test)
+
+som_y_dim = (max(standard_som._neigy) + 1)**2
+som_y_dim
+winmap = standard_som.labels_map(X_test.values, y_test)   
+
+##### _____________________________________________________________________________ 
+
+
+# Train the SOM
+standard_som = create_train_som(data=X_train.values, n_features = X_train.shape[1], convolutional_layer=False)
+
+# Single layer SOM 
+evaluate_purity(standard_som, X_test.values, y_test)
+
+
+
+# each neuron represents a cluster
+winner_coordinates = np.array([standard_som.winner(x) for x in X_test.values]).T
+# with np.ravel_multi_index we convert the bidimensional
+# coordinates to a monodimensional index
+som_shape = (6, 6)
+cluster_index = np.ravel_multi_index(winner_coordinates, som_shape)
+
+X_test.values[cluster_index == 23, 0]
+
+
+import matplotlib.pyplot as plt
+
+# plotting the clusters using the first 2 dimentions of the data
+for c in np.unique(cluster_index):
+    plt.scatter(X_test.values[cluster_index == c, 0], X_test.values[cluster_index == c, 1], label='cluster='+str(c), alpha=.7)
+
+# plotting centroids
+for centroid in standard_som.get_weights():
+    plt.scatter(centroid[:, 0], centroid[:, 1], marker='x', s=80, linewidths=35, color='k', label='centroid')
+plt.legend()
+
+plt.show()
+
+index = winmapDFT.index
+
+winning_pos = standard_som.winner(X_test.values[1])
+
+np.array(index.to_numpy()).T
+
+np.ravel_multi_index(index.to_numpy(), som_shape)
+winmapDF = pd.DataFrame.from_dict(winmap)
+winmapDFT = winmapDF.T
+    # Pull the max value for that node
+winmapDFT["max_val_node"] = winmapDFT.max(axis=1)
+winmapDFT["total_obs_node"] = winmapDFT.iloc[:, 0:3].sum(axis=1)
+    # Calculate the simple node purity (a more complex purity might include some sort of penalty for having moltiple obs set off)
+winmapDFT["node_purity"] = winmapDFT["max_val_node"] / winmapDFT["total_obs_node"]
+winmapDFT["index"] = index.to_numpy()
+winmapDFT["cluster_index"] = winmapDFT["index"].apply(lambda x: convert_coordinants(x,6))
+winmapDFT["winning_label"] 
+
+def classify(som, x_test, x_train, y_train):
+    winmap = som.labels_map(x_train, y_train)
+    default_class = np.sum(list(winmap.values())).most_common()[0][0]
+    result = []
+    for d in x_test:
+        win_position = som.winner(d)
+        if win_position in winmap:
+            result.append(winmap[win_position].most_common()[0][0])
+        else:
+            result.append(default_class)
+    return result
+
+classified = classify(standard_som, X_test.values, X_train.values, y_train)
+
+
+from sklearn.decomposition import PCA
+pca = PCA(n_components=2)
+pca.fit(X_train.values)
+
+from sklearn.decomposition import PCA
+pca_breast = PCA(n_components=2)
+principalComponents_breast = pca.fit(X_train)
+principalComponents_breast = pca.fit_transform(X_train)
+pca_review_df = pd.DataFrame(data= pca_review, columns= ['Component1','Component2'])
+
+principal_breast_Df = pd.DataFrame(data = principalComponents_breast, columns= ['Component1','Component2'])
+
+df_pca  = pd.DataFrame(pca.transform(df), columns=columns, index=df.index)
+
+
+plt.figure()
+plt.figure(figsize=(10,10))
+plt.xticks(fontsize=12)
+plt.yticks(fontsize=14)
+plt.xlabel('Principal Component - 1',fontsize=20)
+plt.ylabel('Principal Component - 2',fontsize=20)
+plt.title("Principal Component Analysis of Breast Cancer Dataset",fontsize=20)
+targets = ['Benign', 'Malignant']
+colors = ['r', 'g']
+for target, color in zip(targets,colors):
+    indicesToKeep = breast_dataset['label'] == target
+    plt.scatter(principal_breast_Df.loc[indicesToKeep, 'principal component 1']
+               , principal_breast_Df.loc[indicesToKeep, 'principal component 2'], c = color, s = 50)
+
+plt.legend(targets,prop={'size': 15})

@@ -41,7 +41,7 @@ X_train_b, X_test_b, y_train_b, y_test_b = train_test_split(new_d_normalised, la
 # Things we need to think about
 # - Cross validation
 # - Visualisation
-# - 
+# - Evaluation in terms of nodes
 
 # Our benchmark SOM will always have the same number of nodes as our final SOM .
 
@@ -53,7 +53,51 @@ standard_som = create_train_som(data=X_train.values, n_features = X_train.shape[
 # Single layer SOM 
 evaluate_purity(standard_som, X_test.values, y_test)
 
+# Train the SOM
+standard_som = create_train_som(data=X_train.values, n_features = X_train.shape[1], convolutional_layer=False)
 
+# Single layer SOM 
+evaluate_purity(standard_som, X_test.values, y_test)
+
+som_y_dim = (max(standard_som._neigy) + 1)**2
+som_y_dim
+winmap = standard_som.labels_map(X_test.values, y_test)  
+
+
+# each neuron represents a cluster
+winner_coordinates = np.array([standard_som.winner(x) for x in X_test.values]).T
+# with np.ravel_multi_index we convert the bidimensional
+# coordinates to a monodimensional index
+som_shape = (6, 6)
+cluster_index = np.ravel_multi_index(winner_coordinates, som_shape)
+
+import matplotlib.pyplot as plt
+%matplotlib inline
+
+# plotting the clusters using the first 2 dimentions of the data
+for c in np.unique(cluster_index):
+    plt.scatter(X_test.values[cluster_index == c, 0], X_test.values[cluster_index == c, 1], label='cluster='+str(c), alpha=.7)
+
+# plotting centroids
+for centroid in standard_som.get_weights():
+    plt.scatter(centroid[:, 0], centroid[:, 1], marker='x', s=80, linewidths=35, color='k', label='centroid')
+plt.legend()
+
+plt.show()
+
+
+winmapDF = pd.DataFrame.from_dict(winmap)
+winmapDFT = winmapDF.T
+    # Pull the max value for that node
+winmapDFT["max_val_node"] = winmapDFT.max(axis=1)
+winmapDFT["total_obs_node"] = winmapDFT.iloc[:, 0:3].sum(axis=1)
+    # Calculate the simple node purity (a more complex purity might include some sort of penalty for having moltiple obs set off)
+winmapDFT["node_purity"] = winmapDFT["max_val_node"] / winmapDFT["total_obs_node"]
+    # Calculate the overall purity for the layer
+node_purity = winmapDFT['node_purity'].mean(axis=0)
+
+
+winmapDFT.shape
 # ________________________________ CREATE A SINGLE LAYER MDSOM ____________________________________
 
 # Create out feature collections
@@ -63,15 +107,7 @@ feature_collections_1 = np.array([[i] for i in X_train.columns ])
 trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1)
 
 # Create our training convolutional layer that is used to blend the results from our layer 1 SOM's
-convolv_layer_one_train = create_convolution_layer(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = True)
-
-values = convolv_layer_one_train.values
-unnested_data = np.array([np.concatenate(i) for i in values])
-new_names_normalise = convolv_layer_one_train.columns
-unnested_data_normalised = preprocessing.normalize(unnested_data, axis=0)
-new_d_normalised = pd.DataFrame(new_d, columns=new_names)
-
-convolv_layer_one_train_normalised = preprocessing.normalize(convolv_layer_one_train, axis=0)
+convolv_layer_one_train = create_convolution_layer(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
 
 # Now using the values output from our training cololutional layer (I think I got half way through implementing the addition of the node number as well
 # as the distance from the given node) So now my create train SOM has no idea what to do with the god dam outpuut.
@@ -89,7 +125,6 @@ evaluate_purity(final_som, convolution_layer_test, y_test, convolutional_layer=T
 # ________________________________ CREATE A SINGLE LAYER MDSOM - Trained on differing featureset ____________________________________
 
 layer_1_feature_collection = pd.array([["area", "perimeter"], ["compactness", "length_kernel"], ["width_kernel","asymmetry_coefficient"]])
-
 
 # Create our first layer
 trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = layer_1_feature_collection)
