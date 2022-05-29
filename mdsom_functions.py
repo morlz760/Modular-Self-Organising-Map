@@ -154,18 +154,68 @@ def create_convolution_layer(data, trained_soms, feature_collections, normalise=
             dataframe[observation_key] = winning_nodes
     return(dataframe)
 
+def create_convolution_layer_only_winning_som(data, trained_soms, feature_collections, normalise=False):
+    # Create empty dataframe to store the winning nodes from our trained SOM's
+    dataframe = pd.DataFrame()
+    # loop through each of the featuresets that have been used to build the SOM's to extarct the output from these values
+    # that will be used to create the convolv layer.
+    for feature_set in feature_collections:
+        # So for each feature set extarct the corrosponding data from the training data.
+        print("Creating convolutional layer for: ", feature_set)
+        train_value = data[feature_set]
+        if len(train_value.dtypes.unique()) > 1:
+            print("Your feature sets have incompatable data formats")
+        if (train_value.dtypes == 'O').all():
+            train_value_array = unnest_data(train_value)
+        else:
+            train_value_array = train_value.values
+        # Convert that data into an array, if the feature set is only one feature we will need to put it into an array
+        # so that we are able to pass it to our SOM and extrac the values.
+        # extract the SOM that was trained on the given feature(s)
+        observation_key = "".join(map(str,feature_set))
+        som = trained_soms.get(observation_key)[0]
+        # Extract the y dimension of the given SOM.
+        som_y_dim = max(som._neigy) + 1
+        print("Y som dims: ",som_y_dim)
+        # extract the distance from weights
+        distance_map = som._distance_from_weights(train_value_array)
+        # Create a winning node array to store the winning nodes for the feature.
+        winning_node_value = []
+        winning_node_distance = []
+        # loop through the array of observations and extract the winning node and its distance for the given observation.
+        for observation in train_value_array:
+            winning_pos = som.winner(observation)
+            node_distance = distance_map[winning_pos]
+            # We now convert this coordinant into a numerical value so we can feed it to our next layer, to to do this properly
+            # we need the y value of the SOM as that helps us convery coords to a single didget.
+            node_value = convert_coordinants(winning_pos, som_y_dim)
+            winning_node_value.append(node_value)
+            winning_node_distance.append(node_distance)
+        # Here we evaluate if we want to normalise our data or not. In this example we are normalising column wise. 
+        if normalise:
+            # winning_node_value_array = pd.array(winning_node_value, dtype=np.int32).reshape(-1,1)
+            # winning_node_value_normalised = preprocessing.normalize(winning_node_value_array, axis = 0).flatten()
+            # winning_node_distance_array = pd.array(winning_node_distance, dtype=np.float32).reshape(-1,1)
+            # winning_node_distance_normalised = preprocessing.normalize(winning_node_distance_array, axis = 0).flatten()
+            # winning_nodes = np.array(list(zip(winning_node_value_normalised, winning_node_distance_normalised))).tolist()
+            dataframe[observation_key] = winning_node_value
+        else:
+            winning_nodes = np.array(list(zip(winning_node_value, winning_node_distance))).tolist()
+            dataframe[observation_key] = winning_node_value
+    return(dataframe)
+
 # This function is used to evaluate the node purity of the output. One way to measure the effecacy of the algo.
 # We need to figure out how to apply this purity function to SOM's that have differing number of nodes
 # SOM's with more NODES will inevidebly have a higher purity raiting 
 
-def evaluate_purity(som, X_train, y_train, convolutional_layer=False):
+def evaluate_purity(som, data, targets, convolutional_layer=False):
     # Unnest training data
     if convolutional_layer:
-        X_train = unnest_data(X_train)
+        data = unnest_data(data)
     else:
-        X_train = X_train
+        data = data
     # Extract the winning node for each obseervation
-    winmap = som.labels_map(X_train, y_train)    
+    winmap = som.labels_map(data, targets)    
     # Create a DF based of the winmap and transpose for easier data manipulation
     winmapDF = pd.DataFrame.from_dict(winmap)
     winmapDFT = winmapDF.T
@@ -208,12 +258,14 @@ def label_output(som, data, targets, final_convolution = pd.DataFrame(), convolu
         return(output)
 
 
-def pca_plot(som, data, targets, final_convolution = "", convolutional_layer = False):
+def pca_plot(data, target_array, title = "Principal Component Analysis"):
+    df = data.copy(deep=True)
+    from sklearn.decomposition import PCA
     # extract the PCA components so we can visualise
     pca = PCA(n_components=2)
-    principalComponents = pca.fit_transform(data)
+    principalComponents = pca.fit_transform(df)
     pca_review_df = pd.DataFrame(data= principalComponents, columns= ['Component1','Component2'])
-    pca_review_df["label"] = result_classes
+    pca_review_df["label"] = target_array
     # Create the plot
     import matplotlib.pyplot as plt
     plt.figure()
@@ -222,8 +274,8 @@ def pca_plot(som, data, targets, final_convolution = "", convolutional_layer = F
     plt.yticks(fontsize=14)
     plt.xlabel('Principal Component - 1',fontsize=20)
     plt.ylabel('Principal Component - 2',fontsize=20)
-    plt.title("Principal Component Analysis of Breast Cancer Dataset",fontsize=20)
-    targets = list(set(targets))
+    plt.title(title,fontsize=20)
+    targets = list(set(target_array))
     colors = ['r', 'g', 'b']
     for target, color in zip(targets,colors):
         indicesToKeep = pca_review_df['label'] == target

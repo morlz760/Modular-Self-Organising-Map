@@ -24,6 +24,8 @@ names = d.columns
 d = preprocessing.normalize(d, axis=1)
 d_normalised = pd.DataFrame(d, columns=names)
 
+
+
 new_names = new_d.columns
 new_d = preprocessing.normalize(new_d, axis=1)
 new_d_normalised = pd.DataFrame(new_d, columns=new_names)
@@ -33,6 +35,8 @@ X_train, X_test, y_train, y_test = train_test_split(d_normalised, labels)
 
 X_train_b, X_test_b, y_train_b, y_test_b = train_test_split(new_d_normalised, labels)
 
+X_train = d_normalised
+y_train = labels
 
 # Things we need to think about
 # - Cross validation
@@ -54,9 +58,7 @@ evaluated_data = label_output(standard_som, X_train, y_train, convolutional_laye
 evaluated_data["correct"] = np.where( (evaluated_data["default_class"] == evaluated_data['evaluated_class']), 1, 0)
 sum(evaluated_data["correct"])/len(evaluated_data.index)
 
-
-x = pca_plot(som = standard_som, data = X_train,targets = y_train, convolutional_layer = False)
-
+x = pca_plot(data = X_train, target_array= evaluated_data['evaluated_class'].values)
 x.show()
 # ________________________________ CREATE A SINGLE LAYER MDSOM ____________________________________
 
@@ -67,21 +69,26 @@ feature_collections_1 = np.array([[i] for i in X_train.columns ])
 trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1)
 
 # Create our training convolutional layer that is used to blend the results from our layer 1 SOM's
-convolv_layer_one_train = create_convolution_layer(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = True)
+convolv_layer_one_train = create_convolution_layer(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
+convolv_layer_one_train = create_convolution_layer_only_winning_som(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
+# Should I just pass the value of the location * the distance. No because value times the distance could influence you producing a new location.
+# Why dont I just pass the location? Why am I passing the distance from the winning node also?
 
+# unnest_data(convolv_layer_one_train)
 # Now using the values output from our training cololutional layer (I think I got half way through implementing the addition of the node number as well
 # as the distance from the given node) So now my create train SOM has no idea what to do with the god dam outpuut.
-final_som = create_train_som(data=convolv_layer_one_train, n_features = convolv_layer_one_train.shape[1], convolutional_layer=True)
+final_som = create_train_som(data=preprocessing.normalize(convolv_layer_one_train, axis=0), n_features = convolv_layer_one_train.shape[1], convolutional_layer=False)
 
-evaluate_purity(final_som, convolv_layer_one_train, y_train, convolutional_layer=True)
+evaluate_purity(final_som, convolv_layer_one_train.values, y_train, convolutional_layer=False)
 # BOOM. We've got our MDSOM. The key elements are the trained soms and the final SOM. 
 
 # Assign a class to the output label
-evaluated_data = label_output(som = final_som, data = X_train, targets = y_train, final_convolution=convolv_layer_one_train, convolutional_layer = True, original = True)
+evaluated_data = label_output(som = final_som, data = convolv_layer_one_train, targets = y_train, convolutional_layer = False, original = True)
 evaluated_data["correct"] = np.where( (evaluated_data["default_class"] == evaluated_data['evaluated_class']), 1, 0)
 sum(evaluated_data["correct"])/len(evaluated_data.index)
 
-
+x = pca_plot(data = X_train, target_array= evaluated_data['evaluated_class'].values)
+x.show()
 
 # Pass our test data through our constructed SOM 
 convolution_layer_test = create_convolution_layer(data=X_test, trained_soms=trained_soms_layer_1, feature_collections = feature_collections_1)
@@ -98,11 +105,13 @@ layer_1_feature_collection = pd.array([["area", "perimeter"], ["compactness", "l
 
 # Create our first layer
 trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = layer_1_feature_collection)
-convolv_layer_one_test = create_convolution_layer(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = layer_1_feature_collection)
+convolv_layer_one_train = create_convolution_layer(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = layer_1_feature_collection, normalise=False)
 
 # Now using the values output from our training cololutional layer (I think I got half way through implementing the addition of the node number as well
 # as the distance from the given node) So now my create train SOM has no idea what to do with the god dam outpuut.
-final_som = create_train_som(data=convolv_layer_one_test, n_features = convolv_layer_one_test.shape[1], convolutional_layer=True)
+final_som = create_train_som(data=convolv_layer_one_train, n_features = convolv_layer_one_train.shape[1], convolutional_layer=True)
+
+evaluate_purity(final_som, convolv_layer_one_train, y_train, convolutional_layer=True)
 
 # BOOM. We've got our MDSOM. The key elements are the trained soms and the final SOM. 
 
