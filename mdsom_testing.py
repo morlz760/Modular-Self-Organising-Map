@@ -1,3 +1,4 @@
+# This script is going to be an example of how to construct each of the differing MDSOM structures.
 
 from mdsom_functions import *
 import pandas as pd
@@ -23,7 +24,6 @@ new_d = data[data.columns[6:7]]
 names = d.columns
 d = preprocessing.normalize(d, axis=1)
 d_normalised = pd.DataFrame(d, columns=names)
-
 
 
 new_names = new_d.columns
