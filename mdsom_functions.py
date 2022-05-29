@@ -130,7 +130,8 @@ def create_convolution_layer(data, trained_soms, feature_collections, normalise=
         # extract the distance from weights
         distance_map = som._distance_from_weights(train_value_array)
         # Create a winning node array to store the winning nodes for the feature.
-        winning_nodes = []
+        winning_node_value = []
+        winning_node_distance = []
         # loop through the array of observations and extract the winning node and its distance for the given observation.
         for observation in train_value_array:
             winning_pos = som.winner(observation)
@@ -138,14 +139,18 @@ def create_convolution_layer(data, trained_soms, feature_collections, normalise=
             # We now convert this coordinant into a numerical value so we can feed it to our next layer, to to do this properly
             # we need the y value of the SOM as that helps us convery coords to a single didget.
             node_value = convert_coordinants(winning_pos, som_y_dim)
-            output = [node_value, node_distance] 
-            winning_nodes.append(output)
+            winning_node_value.append(node_value)
+            winning_node_distance.append(node_distance)
+        # Here we evaluate if we want to normalise our data or not. In this example we are normalising column wise. 
         if normalise:
-            print(winning_nodes)
-            winning_nodes = preprocessing.normalize(winning_nodes)
-            print(winning_nodes)
+            winning_node_value_array = pd.array(winning_node_value, dtype=np.int32).reshape(-1,1)
+            winning_node_value_normalised = preprocessing.normalize(winning_node_value_array, axis = 0).flatten()
+            winning_node_distance_array = pd.array(winning_node_distance, dtype=np.float32).reshape(-1,1)
+            winning_node_distance_normalised = preprocessing.normalize(winning_node_distance_array, axis = 0).flatten()
+            winning_nodes = np.array(list(zip(winning_node_value_normalised, winning_node_distance_normalised))).tolist()
             dataframe[observation_key] = winning_nodes
         else:
+            winning_nodes = np.array(list(zip(winning_node_value, winning_node_distance))).tolist()
             dataframe[observation_key] = winning_nodes
     return(dataframe)
 
@@ -173,3 +178,39 @@ def evaluate_purity(som, X_train, y_train, convolutional_layer=False):
     # Calculate the overall purity for the layer
     node_purity = winmapDFT['node_purity'].mean(axis=0)
     return(node_purity)
+
+def pca_plot(som, data, targets, final_convolution = "", convolutional_layer = False):
+    # Get the winning values
+    if convolutional_layer:
+        data_values = unnest_data(final_convolution)
+    else:
+        data_values = data
+    winmap = som.labels_map(data_values, targets)
+    default_class = np.sum(list(winmap.values())).most_common()[0][0]
+    result_classes = []
+    for d in data_values:
+        win_position = som.winner(d)
+        if win_position in winmap:
+            result_classes.append(winmap[win_position].most_common()[0][0])
+        else:
+            result_classes.append(default_class)
+    # extract the PCA components so we can visualise
+    pca = PCA(n_components=2)
+    principalComponents = pca.fit_transform(data)
+    pca_review_df = pd.DataFrame(data= principalComponents, columns= ['Component1','Component2'])
+    pca_review_df["label"] = result_classes
+    # Create the plot
+    plt.figure()
+    plt.figure(figsize=(10,10))
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=14)
+    plt.xlabel('Principal Component - 1',fontsize=20)
+    plt.ylabel('Principal Component - 2',fontsize=20)
+    plt.title("Principal Component Analysis of Breast Cancer Dataset",fontsize=20)
+    targets = list(set(targets))
+    colors = ['r', 'g', 'b']
+    for target, color in zip(targets,colors):
+        indicesToKeep = pca_review_df['label'] == target
+        plt.scatter(pca_review_df.loc[indicesToKeep, 'Component1'], pca_review_df.loc[indicesToKeep, 'Component2'], c = color, s = 50)
+    plt.legend(targets,prop={'size': 15})
+    return(plt)

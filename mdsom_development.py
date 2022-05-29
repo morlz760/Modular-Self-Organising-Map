@@ -621,6 +621,35 @@ winmap = standard_som.labels_map(X_test.values, y_test)
 ##### _____________________________________________________________________________ 
 
 
+
+# ____________________________ DATA PREP _____________________________________
+
+# Read in our data and prepare it
+columns=['area', 'perimeter', 'compactness', 'length_kernel', 'width_kernel',
+                   'asymmetry_coefficient', 'length_kernel_groove', 'target']
+
+data = pd.read_csv('https://archive.ics.uci.edu/ml/machine-learning-databases/00236/seeds_dataset.txt', 
+                    names=columns, 
+                   sep='\t+', engine='python')
+labels = data['target'].values
+label_names = {1:'Kama', 2:'Rosa', 3:'Canadian'}
+d = data[data.columns[0:6]]
+new_d = data[data.columns[6:7]]
+
+names = d.columns
+d = preprocessing.normalize(d, axis=1)
+d_normalised = pd.DataFrame(d, columns=names)
+
+new_names = new_d.columns
+new_d = preprocessing.normalize(new_d, axis=1)
+new_d_normalised = pd.DataFrame(new_d, columns=new_names)
+
+# Create the test train split of our data.
+X_train, X_test, y_train, y_test = train_test_split(d_normalised, labels)
+
+X_train_b, X_test_b, y_train_b, y_test_b = train_test_split(new_d_normalised, labels)
+
+
 # Train the SOM
 standard_som = create_train_som(data=X_train.values, n_features = X_train.shape[1], convolutional_layer=False)
 
@@ -684,34 +713,56 @@ def classify(som, x_test, x_train, y_train):
 
 classified = classify(standard_som, X_test.values, X_train.values, y_train)
 
+x = pca_plot(final_som, convolv_layer_one_train, y_train)
 
-from sklearn.decomposition import PCA
-pca = PCA(n_components=2)
-pca.fit(X_train.values)
+data = convolv_layer_one_train
+targets = y_train
+som = final_som
+convolutional_layer = True
 
-from sklearn.decomposition import PCA
-pca_breast = PCA(n_components=2)
-principalComponents_breast = pca.fit(X_train)
-principalComponents_breast = pca.fit_transform(X_train)
-pca_review_df = pd.DataFrame(data= pca_review, columns= ['Component1','Component2'])
+def pca_plot(som, data, targets, final_convolution = "", convolutional_layer = False):
+    # Get the winning values
+    if convolutional_layer:
+        data_values = unnest_data(final_convolution)
+    else:
+        data_values = data
+    winmap = som.labels_map(data_values, targets)
+    default_class = np.sum(list(winmap.values())).most_common()[0][0]
+    result_classes = []
+    for d in data_values:
+        win_position = som.winner(d)
+        if win_position in winmap:
+            result_classes.append(winmap[win_position].most_common()[0][0])
+        else:
+            result_classes.append(default_class)
+    # extract the PCA components so we can visualise
+    pca = PCA(n_components=2)
+    principalComponents = pca.fit_transform(data)
+    pca_review_df = pd.DataFrame(data= principalComponents, columns= ['Component1','Component2'])
+    pca_review_df["label"] = result_classes
+    # Create the plot
+    plt.figure()
+    plt.figure(figsize=(10,10))
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=14)
+    plt.xlabel('Principal Component - 1',fontsize=20)
+    plt.ylabel('Principal Component - 2',fontsize=20)
+    plt.title("Principal Component Analysis of Breast Cancer Dataset",fontsize=20)
+    targets = list(set(targets))
+    colors = ['r', 'g', 'b']
+    for target, color in zip(targets,colors):
+        indicesToKeep = pca_review_df['label'] == target
+        plt.scatter(pca_review_df.loc[indicesToKeep, 'Component1'], pca_review_df.loc[indicesToKeep, 'Component2'], c = color, s = 50)
+    plt.legend(targets,prop={'size': 15})
+    return(plt)
 
-principal_breast_Df = pd.DataFrame(data = principalComponents_breast, columns= ['Component1','Component2'])
 
-df_pca  = pd.DataFrame(pca.transform(df), columns=columns, index=df.index)
+classified = classify(standard_som, X_test.values, X_train.values, y_train)
 
 
-plt.figure()
-plt.figure(figsize=(10,10))
-plt.xticks(fontsize=12)
-plt.yticks(fontsize=14)
-plt.xlabel('Principal Component - 1',fontsize=20)
-plt.ylabel('Principal Component - 2',fontsize=20)
-plt.title("Principal Component Analysis of Breast Cancer Dataset",fontsize=20)
-targets = ['Benign', 'Malignant']
-colors = ['r', 'g']
-for target, color in zip(targets,colors):
-    indicesToKeep = breast_dataset['label'] == target
-    plt.scatter(principal_breast_Df.loc[indicesToKeep, 'principal component 1']
-               , principal_breast_Df.loc[indicesToKeep, 'principal component 2'], c = color, s = 50)
+x = pca_plot(standard_som, X_train, y_train)
 
-plt.legend(targets,prop={'size': 15})
+x.show()
+
+
+convolv_layer_one_train.values

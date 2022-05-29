@@ -121,6 +121,7 @@ convolution_layer_test = create_convolution_layer(data=X_test, trained_soms=trai
 
 evaluate_purity(final_som, convolution_layer_test, y_test, convolutional_layer=True)
 
+x = pca_plot(final_som, convolv_layer_one_train, y_train)
 
 # ________________________________ CREATE A SINGLE LAYER MDSOM - Trained on differing featureset ____________________________________
 
