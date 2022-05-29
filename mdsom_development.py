@@ -480,7 +480,6 @@ X_test_area = np.array([[i] for i in X_train['area'].values])
 # _________________________ Alllowing new data to be add at higher level convolutions ____________________________
 
 
-
 X_test_column_names
 
 # Create our first layer of SOMS

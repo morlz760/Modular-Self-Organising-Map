@@ -179,27 +179,43 @@ def evaluate_purity(som, X_train, y_train, convolutional_layer=False):
     node_purity = winmapDFT['node_purity'].mean(axis=0)
     return(node_purity)
 
-def pca_plot(som, data, targets, final_convolution = "", convolutional_layer = False):
+def label_output(som, data, targets, final_convolution = pd.DataFrame(), convolutional_layer = False, original = True):
     # Get the winning values
     if convolutional_layer:
         data_values = unnest_data(final_convolution)
     else:
-        data_values = data
+        data_values = data.values
     winmap = som.labels_map(data_values, targets)
+    # Define the default class
     default_class = np.sum(list(winmap.values())).most_common()[0][0]
     result_classes = []
+    # Extract the winning node for each observation.
     for d in data_values:
         win_position = som.winner(d)
         if win_position in winmap:
             result_classes.append(winmap[win_position].most_common()[0][0])
         else:
             result_classes.append(default_class)
+    if original:
+        output = data.copy(deep=True)
+        output["default_class"] = targets
+        output["evaluated_class"] = result_classes
+        return(output)
+    else:
+        output = final_convolution.copy(deep=True)
+        output["default_class"] = targets
+        output["evaluated_class"] = result_classes
+        return(output)
+
+
+def pca_plot(som, data, targets, final_convolution = "", convolutional_layer = False):
     # extract the PCA components so we can visualise
     pca = PCA(n_components=2)
     principalComponents = pca.fit_transform(data)
     pca_review_df = pd.DataFrame(data= principalComponents, columns= ['Component1','Component2'])
     pca_review_df["label"] = result_classes
     # Create the plot
+    import matplotlib.pyplot as plt
     plt.figure()
     plt.figure(figsize=(10,10))
     plt.xticks(fontsize=12)

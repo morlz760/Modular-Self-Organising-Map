@@ -28,14 +28,10 @@ new_names = new_d.columns
 new_d = preprocessing.normalize(new_d, axis=1)
 new_d_normalised = pd.DataFrame(new_d, columns=new_names)
 
-# Create the test train split of our data.
+# Create the test train split of our data. Do we even need this? As we're Implementing a unsupervised learning algo, do we want this?
 X_train, X_test, y_train, y_test = train_test_split(d_normalised, labels)
 
 X_train_b, X_test_b, y_train_b, y_test_b = train_test_split(new_d_normalised, labels)
-
-# Not sure where this is used.....
-# som_shape = [3,3]
-
 
 
 # Things we need to think about
@@ -51,53 +47,17 @@ X_train_b, X_test_b, y_train_b, y_test_b = train_test_split(new_d_normalised, la
 standard_som = create_train_som(data=X_train.values, n_features = X_train.shape[1], convolutional_layer=False)
 
 # Single layer SOM 
-evaluate_purity(standard_som, X_test.values, y_test)
+evaluate_purity(standard_som, X_train.values, y_train)
 
-# Train the SOM
-standard_som = create_train_som(data=X_train.values, n_features = X_train.shape[1], convolutional_layer=False)
-
-# Single layer SOM 
-evaluate_purity(standard_som, X_test.values, y_test)
-
-som_y_dim = (max(standard_som._neigy) + 1)**2
-som_y_dim
-winmap = standard_som.labels_map(X_test.values, y_test)  
+# Assign a class to the output label
+evaluated_data = label_output(standard_som, X_train, y_train, convolutional_layer = False, original = True)
+evaluated_data["correct"] = np.where( (evaluated_data["default_class"] == evaluated_data['evaluated_class']), 1, 0)
+sum(evaluated_data["correct"])/len(evaluated_data.index)
 
 
-# each neuron represents a cluster
-winner_coordinates = np.array([standard_som.winner(x) for x in X_test.values]).T
-# with np.ravel_multi_index we convert the bidimensional
-# coordinates to a monodimensional index
-som_shape = (6, 6)
-cluster_index = np.ravel_multi_index(winner_coordinates, som_shape)
+x = pca_plot(som = standard_som, data = X_train,targets = y_train, convolutional_layer = False)
 
-import matplotlib.pyplot as plt
-%matplotlib inline
-
-# plotting the clusters using the first 2 dimentions of the data
-for c in np.unique(cluster_index):
-    plt.scatter(X_test.values[cluster_index == c, 0], X_test.values[cluster_index == c, 1], label='cluster='+str(c), alpha=.7)
-
-# plotting centroids
-for centroid in standard_som.get_weights():
-    plt.scatter(centroid[:, 0], centroid[:, 1], marker='x', s=80, linewidths=35, color='k', label='centroid')
-plt.legend()
-
-plt.show()
-
-
-winmapDF = pd.DataFrame.from_dict(winmap)
-winmapDFT = winmapDF.T
-    # Pull the max value for that node
-winmapDFT["max_val_node"] = winmapDFT.max(axis=1)
-winmapDFT["total_obs_node"] = winmapDFT.iloc[:, 0:3].sum(axis=1)
-    # Calculate the simple node purity (a more complex purity might include some sort of penalty for having moltiple obs set off)
-winmapDFT["node_purity"] = winmapDFT["max_val_node"] / winmapDFT["total_obs_node"]
-    # Calculate the overall purity for the layer
-node_purity = winmapDFT['node_purity'].mean(axis=0)
-
-
-winmapDFT.shape
+x.show()
 # ________________________________ CREATE A SINGLE LAYER MDSOM ____________________________________
 
 # Create out feature collections
@@ -107,7 +67,7 @@ feature_collections_1 = np.array([[i] for i in X_train.columns ])
 trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1)
 
 # Create our training convolutional layer that is used to blend the results from our layer 1 SOM's
-convolv_layer_one_train = create_convolution_layer(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
+convolv_layer_one_train = create_convolution_layer(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = True)
 
 # Now using the values output from our training cololutional layer (I think I got half way through implementing the addition of the node number as well
 # as the distance from the given node) So now my create train SOM has no idea what to do with the god dam outpuut.
@@ -116,12 +76,21 @@ final_som = create_train_som(data=convolv_layer_one_train, n_features = convolv_
 evaluate_purity(final_som, convolv_layer_one_train, y_train, convolutional_layer=True)
 # BOOM. We've got our MDSOM. The key elements are the trained soms and the final SOM. 
 
+# Assign a class to the output label
+evaluated_data = label_output(som = final_som, data = X_train, targets = y_train, final_convolution=convolv_layer_one_train, convolutional_layer = True, original = True)
+evaluated_data["correct"] = np.where( (evaluated_data["default_class"] == evaluated_data['evaluated_class']), 1, 0)
+sum(evaluated_data["correct"])/len(evaluated_data.index)
+
+
+
 # Pass our test data through our constructed SOM 
 convolution_layer_test = create_convolution_layer(data=X_test, trained_soms=trained_soms_layer_1, feature_collections = feature_collections_1)
 
 evaluate_purity(final_som, convolution_layer_test, y_test, convolutional_layer=True)
 
-x = pca_plot(final_som, convolv_layer_one_train, y_train)
+# def pca_plot(som, data, targets, final_convolution = "", convolutional_layer = False):
+
+x = pca_plot(som = final_som, data = X_train,targets = y_train, final_convolution = convolv_layer_one_train, convolutional_layer = True)
 
 # ________________________________ CREATE A SINGLE LAYER MDSOM - Trained on differing featureset ____________________________________
 
