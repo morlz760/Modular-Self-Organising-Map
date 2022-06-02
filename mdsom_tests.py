@@ -48,14 +48,14 @@ y_train = labels
 
 # ________________________________ CREATE A SOM TRAINED OFF ALL VALUES ____________________________________
 
-data_for_evaluation = X_train[X_train.columns[0:2]]
+data_for_evaluation = X_train[X_train.columns[0:7]]
 
 purity_results = []
 class_results = []
 
 for _ in range(10):
     # Train the SOM
-    standard_som = create_train_som(data=data_for_evaluation.values, n_features = data_for_evaluation.shape[1], convolutional_layer=False)
+    standard_som = create_train_som(data=data_for_evaluation.values, n_samples=data_for_evaluation.shape[0], n_features = data_for_evaluation.shape[1], convolutional_layer=False)
     purity = evaluate_purity(standard_som, data_for_evaluation.values, y_train)
     purity_results.append(purity)
     evaluated_data = label_output(standard_som, data_for_evaluation, y_train, convolutional_layer = False, original = True)
@@ -153,7 +153,7 @@ class_results = []
 # Results using node location and distance and location normalised
 for _ in range(10):
     trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1)
-    convolv_layer_one_train = create_convolution_layer(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = True)
+    convolv_layer_one_train = create_convolution_layer(dat  a = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = True)
     final_som = create_train_som(data= convolv_layer_one_train, n_features = convolv_layer_one_train.shape[1], convolutional_layer=True)
     purity = evaluate_purity(final_som, convolv_layer_one_train, y_train, convolutional_layer=True)
     purity_results.append(purity)
