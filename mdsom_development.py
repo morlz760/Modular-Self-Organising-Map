@@ -656,7 +656,18 @@ standard_som = create_train_som(data=X_train.values, n_features = X_train.shape[
 evaluate_purity(standard_som, X_test.values, y_test)
 
 
+n_features = 1
+5*math.sqrt(n_features)
 
+int(math.sqrt(5*math.sqrt(n_features)))
+
+
+int((math.sqrt(5*math.sqrt(n_features))))
+int((math.sqrt(5*math.sqrt(n_features))))
+
+x = som_nurons
+y = som_nurons
+14*14
 # each neuron represents a cluster
 winner_coordinates = np.array([standard_som.winner(x) for x in X_test.values]).T
 # with np.ravel_multi_index we convert the bidimensional
@@ -765,3 +776,156 @@ x.show()
 
 
 convolv_layer_one_train.values
+
+
+
+def create_convolution_layer_g(data, trained_soms, feature_collections, normalise=False):
+    dataframe = pd.DataFrame()
+    for feature_set in feature_collections:
+        print("Creating convolutional layer for: ", feature_set)
+        train_value = data[feature_set]
+        if len(train_value.dtypes.unique()) > 1:
+            print("Your feature sets have incompatable data formats")
+        if (train_value.dtypes == 'O').all():
+            train_value_array = unnest_data(train_value)
+        else:
+            train_value_array = train_value.values
+        observation_key = "".join(map(str,feature_set))
+        som = trained_soms.get(observation_key)[0]
+        som_y_dim = max(som._neigy) + 1
+        print("Y som dims: ",som_y_dim)
+        distance_map = som._distance_from_weights(train_value_array)
+        winning_node_value = []
+        winning_node_distance = []
+        for observation in train_value_array:
+            winning_pos = som.winner(observation)
+            node_distance = distance_map[winning_pos]
+            node_value = convert_coordinants(winning_pos, som_y_dim)
+            print(som_y_dim)
+            listofzeros = [0] * (som_y_dim**2)
+            print(listofzeros)
+            listofzeros[node_value]=node_distance
+            print(listofzeros)
+            winning_node_value.append(listofzeros)
+        # winning_nodes = np.array(list(zip(winning_node_value, winning_node_distance))).tolist()
+        dataframe[observation_key] = winning_node_value
+    return(dataframe)
+
+def create_train_som(data, n_features, n_samples, convolutional_layer = False):
+    # Create SOM dimensions
+    if convolutional_layer:
+        data = unnest_data(data)
+        n_features = n_features
+    else:
+        data = data
+    # Create SOM dimensions
+    som_nurons = int((math.sqrt(5*math.sqrt(n_samples))))
+    x = som_nurons
+    y = som_nurons
+    print("Som Neurons", x*y)
+    #Create and train SOM
+    som = MiniSom(x, y, n_features, sigma=0.3, learning_rate=0.5) # initialization of x X y som
+    som.random_weights_init(data)
+    som.train_random(data,100, verbose=False) # training with 100 iterations
+    return som
+
+def unnest_data(data):
+        values = data.values
+        unnested_data = np.array([np.concatenate(i) for i in values])
+        return(unnested_data)
+
+
+
+data = pd.read_csv("../data/winequality-red.csv", sep = ";")
+labels = data['quality'].values
+# label_names = {1:'Kama', 2:'Rosa', 3:'Canadian'}
+d = data[data.columns[0:11]]
+new_d = data[data.columns[6:7]]
+
+names = d.columns
+d = preprocessing.normalize(d, axis=0)
+d_normalised = pd.DataFrame(d, columns=names)
+
+X_train = d
+feature_collections_1 = np.array([[i] for i in X_train.columns ])
+
+trained_soms_layer_1 = train_som_layer(data = X_train, n_samples= X_train.shape[0], feature_collections = feature_collections_1)
+convolv_layer_one_train = create_convolution_layer_g(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1, normalise = False)
+final_som = create_train_som(data=convolv_layer_one_train, n_samples=convolv_layer_one_train.shape[0], n_features = 2156, convolutional_layer=True)
+
+
+evaluate_purity(final_som, convolv_layer_one_train, labels, convolutional_layer=True)
+
+som = final_som
+X_train = convolv_layer_one_train
+y_train = labels
+
+
+data = unnest_data(X_train)
+winmap = som.labels_map(data, y_train)
+    # Create a DF based of the winmap and transpose for easier data manipulation
+winmapDF = pd.DataFrame.from_dict(winmap)
+winmapDFT = winmapDF.T
+winmapDFT["max_val_node"] = winmapDFT.max(axis=1)
+winmapDFT["total_obs_node"] = winmapDFT.iloc[:, 0:(len(winmapDFT.columns)-1)].sum(axis=1)
+winmapDFT["node_purity"] = winmapDFT["max_val_node"] / winmapDFT["total_obs_node"]
+winmapDFT["weight"] = winmapDFT["total_obs_node"] / winmapDFT['total_obs_node'].sum(axis=0)
+winmapDFT["weighted_node_purity"] = winmapDFT["node_purity"] * winmapDFT["weight"]
+    # Calculate the overall purity for the layer
+node_purity = winmapDFT['weighted_node_purity'].mean(axis=0)
+node_purity
+    return(node_purity)
+
+
+def evaluate_purity(som, X_train, y_train, convolutional_layer=True):
+    # Extract the winning node for each obseervation
+    winmap = som.labels_map(X_train, y_train)    
+    # Create a DF based of the winmap and transpose for easier data manipulation
+    winmapDF = pd.DataFrame.from_dict(winmap)
+    winmapDFT = winmapDF.T
+    # Pull the max value for that node
+    winmapDFT["max_val_node"] = winmapDFT.max(axis=1)
+    # Create a column that has the total observations for each node
+    winmapDFT["total_obs_node"] = winmapDFT.iloc[:, 0:3].sum(axis=1)
+    # Calculate the simple node purity (a more complex purity might include some sort of penalty for having moltiple obs set off)
+    winmapDFT["node_purity"] = winmapDFT["max_val_node"] / winmapDFT["total_obs_node"]
+    # Calculate the overall purity for the layer
+    node_purity = winmapDFT['node_purity'].mean(axis=0)
+    return(node_purity)
+
+
+[np.concatenate(i) for i in convolv_layer_one_train.values]
+
+len([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.04674977035649541, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+
+convolv_layer_one_train.values
+
+x = np.array([list([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]),
+       0.08253602517877194,
+       list([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+       0.04282131066234408,
+       list([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+       0.007008742575981281,
+       list([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0]),
+       0.0046696274581673,
+       list([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+       0.01232771160040085,
+       list([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]),
+       0.162801114361683], dtype=object)
+
+[np.concatenate(i) for i in x]
+
+x = [[6, 0], 0.03939129978946895]
+pd.array(x).flatten()
+[np.concatenate(i) for i in x]
+pd.array(np.hstack(x))
+x.hstack()
+
+y = [[[1, 2], 0.21556796132792605],[[1, 2], 0.21556796132792605]]
+
+t = np.array([np.hstack(i) for i in convolv_layer_one_train]).tolist()
+
+np.hstack(y)
+dataframe = pd.DataFrame()
+t.shape
+dataframe["observation_key"] = t

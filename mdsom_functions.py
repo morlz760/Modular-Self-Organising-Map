@@ -40,7 +40,7 @@ def unnest_data(data):
         return(unnested_data)
 
 # Create and train a SOM
-def create_train_som(data, n_features, convolutional_layer = False):
+def create_train_som(data, n_features, n_samples, convolutional_layer = False):
     # Create SOM dimensions
     if convolutional_layer:
         data = unnest_data(data)
@@ -48,7 +48,7 @@ def create_train_som(data, n_features, convolutional_layer = False):
     else:
         data = data
     # Create SOM dimensions
-    som_nurons = int((math.sqrt(5*math.sqrt(n_features))))*2
+    som_nurons = int((math.sqrt(5*math.sqrt(n_samples))))
     x = som_nurons
     y = som_nurons
     print("Som Neurons", x*y)
@@ -77,7 +77,7 @@ def data_vectorisation(data):
     else:
         return(data_values_array)
 
-def train_som_layer(data, feature_collections, convolutional_layer = False):
+def train_som_layer(data, n_samples, feature_collections, convolutional_layer = False):
     # create a dictionary to store the trained SOM
     trained_soms = {}
     # For each feature in the data set we will train a SOM. I intend to update this so that we can pass this function a list of combos we want to 
@@ -96,7 +96,7 @@ def train_som_layer(data, feature_collections, convolutional_layer = False):
         # train_value_array = train_value
         print("n features for creating SOM:", n_features)
         observation_key = "".join(map(str,feature_set))
-        som = create_train_som(train_value_array, n_features)
+        som = create_train_som(train_value_array, n_features, n_samples)
         trained_soms.setdefault(observation_key,[]).append(som)
     return(trained_soms)
 
@@ -155,7 +155,6 @@ def create_convolution_layer(data, trained_soms, feature_collections, normalise=
     return(dataframe)
 
 def create_convolution_layer_only_winning_som(data, trained_soms, feature_collections, normalise=False):
-    # Create empty dataframe to store the winning nodes from our trained SOM's
     dataframe = pd.DataFrame()
     # loop through each of the featuresets that have been used to build the SOM's to extarct the output from these values
     # that will be used to create the convolv layer.
@@ -169,38 +168,21 @@ def create_convolution_layer_only_winning_som(data, trained_soms, feature_collec
             train_value_array = unnest_data(train_value)
         else:
             train_value_array = train_value.values
-        # Convert that data into an array, if the feature set is only one feature we will need to put it into an array
-        # so that we are able to pass it to our SOM and extrac the values.
-        # extract the SOM that was trained on the given feature(s)
         observation_key = "".join(map(str,feature_set))
         som = trained_soms.get(observation_key)[0]
         # Extract the y dimension of the given SOM.
         som_y_dim = max(som._neigy) + 1
         print("Y som dims: ",som_y_dim)
-        # extract the distance from weights
-        distance_map = som._distance_from_weights(train_value_array)
-        # Create a winning node array to store the winning nodes for the feature.
         winning_node_value = []
-        winning_node_distance = []
         # loop through the array of observations and extract the winning node and its distance for the given observation.
         for observation in train_value_array:
             winning_pos = som.winner(observation)
-            node_distance = distance_map[winning_pos]
-            # We now convert this coordinant into a numerical value so we can feed it to our next layer, to to do this properly
-            # we need the y value of the SOM as that helps us convery coords to a single didget.
             node_value = convert_coordinants(winning_pos, som_y_dim)
             winning_node_value.append(node_value)
-            winning_node_distance.append(node_distance)
-        # Here we evaluate if we want to normalise our data or not. In this example we are normalising column wise. 
         if normalise:
-            # winning_node_value_array = pd.array(winning_node_value, dtype=np.int32).reshape(-1,1)
-            # winning_node_value_normalised = preprocessing.normalize(winning_node_value_array, axis = 0).flatten()
-            # winning_node_distance_array = pd.array(winning_node_distance, dtype=np.float32).reshape(-1,1)
-            # winning_node_distance_normalised = preprocessing.normalize(winning_node_distance_array, axis = 0).flatten()
-            # winning_nodes = np.array(list(zip(winning_node_value_normalised, winning_node_distance_normalised))).tolist()
-            dataframe[observation_key] = winning_node_value
+            winning_node_distance_normalised = preprocessing.normalize(node_value, axis = 0).flatten()
+            dataframe[observation_key] = winning_node_distance_normalised
         else:
-            winning_nodes = np.array(list(zip(winning_node_value, winning_node_distance))).tolist()
             dataframe[observation_key] = winning_node_value
     return(dataframe)
 
@@ -222,12 +204,17 @@ def evaluate_purity(som, data, targets, convolutional_layer=False):
     # Pull the max value for that node
     winmapDFT["max_val_node"] = winmapDFT.max(axis=1)
     # Create a column that has the total observations for each node
-    winmapDFT["total_obs_node"] = winmapDFT.iloc[:, 0:3].sum(axis=1)
+    winmapDFT["total_obs_node"] = winmapDFT.iloc[:, 0:(len(winmapDFT.columns)-1)].sum(axis=1)
     # Calculate the simple node purity (a more complex purity might include some sort of penalty for having moltiple obs set off)
     winmapDFT["node_purity"] = winmapDFT["max_val_node"] / winmapDFT["total_obs_node"]
+    # Calculate the weight of each node
+    winmapDFT["weight"] = winmapDFT["total_obs_node"] / winmapDFT['total_obs_node'].sum(axis=0)
+    # Calculate the weighted node purity
+    winmapDFT["weighted_node_purity"] = winmapDFT["node_purity"] * winmapDFT["weight"]
     # Calculate the overall purity for the layer
     node_purity = winmapDFT['node_purity'].mean(axis=0)
-    return(node_purity)
+    weighted_node_purity = winmapDFT['weighted_node_purity'].sum(axis=0)
+    return(winmapDFT)
 
 def label_output(som, data, targets, final_convolution = pd.DataFrame(), convolutional_layer = False, original = True):
     # Get the winning values
