@@ -134,7 +134,7 @@ def create_train_som(data, n_features, grid_size = [8,8], convolutional_layer = 
     y = grid_size[1]
     print("Som Neurons", x*y)
     #Create and train SOM
-    som = MiniSom(x, y, n_features, sigma=1.5, learning_rate=0.5, neighborhood_function='gaussian', random_seed=0) # initialization of x X y som
+    som = MiniSom(x, y, n_features, sigma=1.5, learning_rate=0.5, neighborhood_function='gaussian') # initialization of x X y som
     som.random_weights_init(data)
     som.train_random(data, 1000, verbose=False) # training with 100 iterations
     return som

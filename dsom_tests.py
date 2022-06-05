@@ -48,16 +48,10 @@ x.show()
 
 # ________________________________ CREATE A SOM TRAINED OFF ALL VALUES ____________________________________
 
-grid_size_variations = [[6,6], [7,7] ,[8,8], [9,9],[10,10], [12,12], [16,16], [20,20], [24,24]]
 
-col_results_purity = []
-for grid_size in grid_size_variations:
-    print(grid_size)
-    # data_for_evaluation = X_train[X_train.columns[0:n_cols]]
-    purity_results = []
     for _ in range(10):
         # Train the SOM
-        standard_som = create_train_som(data=X_train.values, n_features=X_train.shape[1], grid_size = grid_size, convolutional_layer=False)
+        standard_som = create_train_som(data=X_train.values, n_features=X_train.shape[1], grid_size = [8,8], convolutional_layer=False)
         purity = evaluate_purity(standard_som, X_train.values, y_train)
         purity_results.append(purity)
     col_results_purity.append(statistics.mean(purity_results))
@@ -77,128 +71,100 @@ fig.show()
 # I can just use the method from the original paper. Then just run it ten times. Show the two scores and the two plots
 # I feel like that isnt enough test cases. Ok so why dont I start with results from a single layer SOM. With all features from DS
 
-# ________________________________ CREATE SINGLE LAYER DSOM USING ONLY WINNING VALUE ____________________________________
+# ________________________________ CREATE SINGLE LAYER DSOM using node location as coords and distance____________________________________
 
 # Create simple feature collections
 feature_collections_1 = np.array([[i] for i in X_train.columns ])
 feature_collections_1 = pd.array([["area", "perimeter","compactness", "length_kernel","width_kernel","asymmetry_coefficient", "length_kernel_groove"]])
 ######## Results using only node location as single value index ##############
-grid_size_variations = [[6,6], [7,7] ,[8,8], [9,9],[10,10], [12,12], [16,16], [20,20], [24,24]]
+# grid_size_variations = [[6,6], [7,7] ,[8,8], [9,9],[10,10], [12,12], [16,16], [20,20], [24,24]]
 
-col_results_purity = []
-for grid_size in grid_size_variations:
-    print(grid_size)
-    # data_for_evaluation = X_train[X_train.columns[0:n_cols]]
-    purity_results = []
-    for _ in range(10):
-        trained_soms_layer_1 = train_som_layer(data = X_train,feature_collections = feature_collections_1, grid_size=grid_size)
-        convolv_layer_one_train = create_convolution_layer_only_winning_som(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
-        final_som = create_train_som(data= convolv_layer_one_train.values, n_features = convolv_layer_one_train.shape[1], convolutional_layer=False)
-        purity = evaluate_purity(final_som, convolv_layer_one_train.values, y_train, convolutional_layer=False)
-        purity_results.append(purity)
-    
-    col_results_purity.append(statistics.mean(purity_results))
+###########  ################
 
-d = {"sampling_method": "z", 'grid_size': grid_size_variations, 'purity': col_results_purity}
-dfz = pd.DataFrame(data=d)
-dfz["grid_size"] = dfz["grid_size"].apply(lambda x: ' x '.join(map(str, x)))
-fig = px.line(dfz, x="grid_size", y="purity", text="purity",title='Evaluating Purity')
-fig.show()
+purity_results = []
+for _ in range(10):
+    trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1, grid_size=[9,9])
+    convolv_layer_one_train = create_convolution_layer_xyw(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
+    final_som = create_train_som(data= convolv_layer_one_train, n_features = convolv_layer_one_train.shape[1]*3, convolutional_layer=True)
+    purity = evaluate_purity(final_som, convolv_layer_one_train, y_train, convolutional_layer=True)
+    purity_results.append(purity)
+statistics.mean(purity_results)
 
+d = {"sampling_method": "xyw",'grid_size': grid_size_variations, 'purity': col_results_purity}
+dfxyw = pd.DataFrame(data=d)
+dfxyw["grid_size"] = dfxyw["grid_size"].apply(lambda x: ' x '.join(map(str, x)))
+som = trained_soms_layer_1.get("areaperimetercompactnesslength_kernelwidth_kernelasymmetry_coefficientlength_kernel_groove")
 
-som = trained_soms_layer_1.get("areaperimetercompactnesslength_kernelwidth_kernelasymmetry_coefficient")
-
-plot = som_map_plot(X_train, y_train, som, convolutional_layer = False)
+# plot = som_map_plot(X_train, y_train, som, convolutional_layer = False)
 plot.show() 
 
-import plotly.express as px
-import matplotlib.pyplot as plt
-if convolutional_layer:
-    data_values = unnest_data(convolv_layer_one_train)
-else:
-    data_values = convolv_layer_one_train.values
-winmap = pd.DataFrame()
-winmap = final_som.labels_map(data_values, y_train)
-winmapDFT = pd.DataFrame(winmap).T
-winmapDFT['class'] = winmapDFT.apply(lambda x: winmapDFT.columns[x.argmax()], axis = 1).astype(str) 
-winmapDFT = winmapDFT.reset_index()
-winmapDFT["max_val_node"] = winmapDFT[[1,2,3]].max(axis=1)
-winmapDFT["total_obs_node"] = winmapDFT[[1,2,3]].sum(axis=1)
-winmapDFT["node_purity"] = winmapDFT["max_val_node"] / winmapDFT["total_obs_node"]
-winmapDFT_pure = winmapDFT[(winmapDFT.node_purity != 1)]
-# plt.figure(figsize=(10, 10))
-pllot = px.scatter(winmapDFT, x="level_0", y="level_1", color="class")
-pllot.update_traces(marker_size=25)
-pllot.show()
+
+
+
+def plot_som_win_map(data, labels, som, sampled_layer = False):
+    import plotly.express as px
+    if sampled_layer:
+        data_values = unnest_data(data)
+    else:
+        data_values = data.values
+    # Create the dataframe to plot.
+    winmap = pd.DataFrame()
+    winmap = som.labels_map(data_values, labels)
+    winmapDFT = pd.DataFrame(winmap).T
+    winmapDFT['class'] = winmapDFT.apply(lambda x: winmapDFT.columns[x.argmax()], axis = 1).astype(str) 
+    winmapDFT = winmapDFT.reset_index()
+    winmapDFT["max_val_node"] = winmapDFT[[1,2,3]].max(axis=1)
+    winmapDFT["total_obs_node"] = winmapDFT[[1,2,3]].sum(axis=1)
+    winmapDFT["node_purity"] = winmapDFT["max_val_node"] / winmapDFT["total_obs_node"]
+    # plot the data
+    fig = px.scatter(winmapDFT, x="level_0", y="level_1", color="class", size="node_purity")
+    fig.update_layout(
+        title='Evaluating Final Layer Performance - 2 layers',
+        template="simple_white",
+        autosize=False,
+        width=750,
+        height=600,
+        yaxis=dict(
+            title='Y coordinate',
+            titlefont_size=16,
+            tickfont_size=14,
+            tickmode='linear',
+            showgrid=True, 
+            mirror=True,
+            ticks='outside',
+            showline=True,
+            gridwidth=1,
+            gridcolor='#e0e0e0'
+        ),
+        xaxis=dict(
+            title='X coordinate',
+            titlefont_size=16,
+            tickfont_size=14,
+            tickmode='linear',
+            showgrid=True, 
+            mirror=True,
+            ticks='outside',
+            showline=True,
+            gridwidth=1,
+            gridcolor='#e0e0e0'
+        ),
+            legend=dict(
+            title='Allocated Class',
+            bgcolor='rgba(255, 255, 255, 0)',
+            bordercolor='rgba(255, 255, 255, 0)'
+        )
+        # paper_bgcolor='rgba(0,0,0,0)',
+        # plot_bgcolor='rgba(0,0,0,0)'
+    )
+    fig.show()
+
 
 
 x = pca_plot(data = data_for_evaluation, target_array= evaluated_data['evaluated_class'].values)
 x.savefig('visulisations/standard_som_all_features.png', bbox_inches='tight')
 x.show()
 
-########### Results using node location and distance ################
 
-col_results_purity = []
-for grid_size in grid_size_variations:
-    print(grid_size)
-    # data_for_evaluation = X_train[X_train.columns[0:n_cols]]
-    purity_results = []
-    for _ in range(10):
-        trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1, grid_size=grid_size)
-        convolv_layer_one_train = create_convolution_layer_zw(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
-        final_som = create_train_som(data= convolv_layer_one_train, n_features = convolv_layer_one_train.shape[1]*2, convolutional_layer=True)
-        purity = evaluate_purity(final_som, convolv_layer_one_train, y_train, convolutional_layer=True)
-        purity_results.append(purity)
-        
-    col_results_purity.append(statistics.mean(purity_results))
-
-col_results_purity
-
-
-d = {"sampling_method": "zw", 'grid_size': grid_size_variations, 'purity': col_results_purity}
-dfzw = pd.DataFrame(data=d)
-dfzw["grid_size"] = dfzw["grid_size"].apply(lambda x: ' x '.join(map(str, x)))
-fig = px.line(dfzw, x="grid_size", y="purity", text="purity",title='Evaluating Purity')
-fig.show()
-
-########### Results using node location and distance normalised ################
-col_results_purity = []
-for grid_size in grid_size_variations:
-    print(grid_size)
-    # data_for_evaluation = X_train[X_train.columns[0:n_cols]]
-    purity_results = []
-    for _ in range(10):
-        trained_soms_layer_1 = train_som_layer(data = X_train,  feature_collections = feature_collections_1, grid_size=grid_size)
-        convolv_layer_one_train = create_convolution_layer_zw(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = True)
-        final_som = create_train_som(data= convolv_layer_one_train, n_features = convolv_layer_one_train.shape[1]*2, convolutional_layer=True)
-        purity = evaluate_purity(final_som, convolv_layer_one_train, y_train, convolutional_layer=True)
-        purity_results.append(purity)
-        
-    col_results_purity.append(statistics.mean(purity_results))
-
-d = {"sampling_method": "zw_n",'grid_size': grid_size_variations, 'purity': col_results_purity}
-dfzw_n = pd.DataFrame(data=d)
-dfzw_n["grid_size"] = dfzw_n["grid_size"].apply(lambda x: ' x '.join(map(str, x)))
-fig = px.line(dfzw_n, x="grid_size", y="purity", text="purity",title='Evaluating Purity')
-fig.show()
-
-########### Results using node location as coords and distance ################
-col_results_purity = []
-for grid_size in grid_size_variations:
-    print(grid_size)
-    # data_for_evaluation = X_train[X_train.columns[0:n_cols]]
-    purity_results = []
-    for _ in range(10):
-        trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1, grid_size=grid_size)
-        convolv_layer_one_train = create_convolution_layer_xyw(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
-        final_som = create_train_som(data= convolv_layer_one_train, n_features = convolv_layer_one_train.shape[1]*3, convolutional_layer=True)
-        purity = evaluate_purity(final_som, convolv_layer_one_train, y_train, convolutional_layer=True)
-        purity_results.append(purity)
-    col_results_purity.append(statistics.mean(purity_results))
-
-d = {"sampling_method": "xyw",'grid_size': grid_size_variations, 'purity': col_results_purity}
-dfxyw = pd.DataFrame(data=d)
-dfxyw["grid_size"] = dfxyw["grid_size"].apply(lambda x: ' x '.join(map(str, x)))
 
 
 ########### Results using node location in vector of 0's ################
@@ -258,7 +224,7 @@ fig.show()
 
 
 fig.update_layout(
-    title='Evaluating Perforamce Over Differing Grid Sizes',
+    title='Evaluating Perforamce Over Differing Grid Sizes - Simple Data',
     template="simple_white",
     autosize=False,
     width=750,
