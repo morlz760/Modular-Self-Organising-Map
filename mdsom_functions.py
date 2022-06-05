@@ -40,7 +40,7 @@ def unnest_data(data):
         return(unnested_data)
 
 # Create and train a SOM
-def create_train_som(data, n_features, n_samples, convolutional_layer = False):
+def create_train_som(data, n_features, grid_size = [8,8], convolutional_layer = False):
     # Create SOM dimensions
     if convolutional_layer:
         data = unnest_data(data)
@@ -48,14 +48,14 @@ def create_train_som(data, n_features, n_samples, convolutional_layer = False):
     else:
         data = data
     # Create SOM dimensions
-    som_nurons = int((math.sqrt(5*math.sqrt(n_samples))))
-    x = som_nurons
-    y = som_nurons
+    # som_nurons = int((math.sqrt(5*math.sqrt(n_samples))))
+    x = grid_size[0]
+    y = grid_size[1]
     print("Som Neurons", x*y)
     #Create and train SOM
     som = MiniSom(x, y, n_features, sigma=0.3, learning_rate=0.5) # initialization of x X y som
     som.random_weights_init(data)
-    som.train_random(data,100, verbose=False) # training with 100 iterations
+    som.train_random(data, 10000, verbose=False) # training with 100 iterations
     return som
 
 def data_prep(data):
@@ -77,7 +77,7 @@ def data_vectorisation(data):
     else:
         return(data_values_array)
 
-def train_som_layer(data, n_samples, feature_collections, convolutional_layer = False):
+def train_som_layer(data, feature_collections, grid_size = [8,8], convolutional_layer = False):
     # create a dictionary to store the trained SOM
     trained_soms = {}
     # For each feature in the data set we will train a SOM. I intend to update this so that we can pass this function a list of combos we want to 
@@ -96,7 +96,7 @@ def train_som_layer(data, n_samples, feature_collections, convolutional_layer = 
         # train_value_array = train_value
         print("n features for creating SOM:", n_features)
         observation_key = "".join(map(str,feature_set))
-        som = create_train_som(train_value_array, n_features, n_samples)
+        som = create_train_som(train_value_array, n_features, grid_size)
         trained_soms.setdefault(observation_key,[]).append(som)
     return(trained_soms)
 
@@ -268,4 +268,24 @@ def pca_plot(data, target_array, title = "Principal Component Analysis"):
         indicesToKeep = pca_review_df['label'] == target
         plt.scatter(pca_review_df.loc[indicesToKeep, 'Component1'], pca_review_df.loc[indicesToKeep, 'Component2'], c = color, s = 50)
     plt.legend(targets,prop={'size': 15})
+    return(plt)
+
+def som_map_plot(data, labels, som, convolutional_layer = False):
+    import plotly.express as px
+    import matplotlib.pyplot as plt
+    if convolutional_layer:
+        data_values = unnest_data(data)
+    else:
+        data_values = data.values
+    winmap = som.labels_map(data_values, labels)
+    winmapDFT = pd.DataFrame(winmap).T
+    winmapDFT['class'] = winmapDFT.apply(lambda x: winmapDFT.columns[x.argmax()], axis = 1).astype(str) 
+    winmapDFT = winmapDFT.reset_index()
+    winmapDFT["max_val_node"] = winmapDFT[[1,2,3]].max(axis=1)
+    winmapDFT["total_obs_node"] = winmapDFT[[1,2,3]].sum(axis=1)
+    winmapDFT["node_purity"] = winmapDFT["max_val_node"] / winmapDFT["total_obs_node"]
+    winmapDFT_pure = winmapDFT[(winmapDFT.node_purity != 1)]
+    plt.figure(figsize=(10, 10))
+    plt = px.scatter(winmapDFT, x="level_0", y="level_1", color="class")
+    plt.update_traces(marker_size=25)
     return(plt)

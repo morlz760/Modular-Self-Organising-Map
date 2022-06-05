@@ -1,5 +1,5 @@
 
-from mdsom_function_dev_convo_layer import *
+from mdsom_functions import *
 import pandas as pd
 # from minisom import MiniSom
 import numpy as np
@@ -35,34 +35,174 @@ new_d_normalised = pd.DataFrame(new_d, columns=new_names)
 X_train = d_normalised
 y_train = labels
 
+X_train_b, X_test_b, y_train_b, y_test_b = train_test_split(X_train, y_train)
 
+classify(final_som, x_test, x_train, y_train)
+
+# Initialization and training
+n_neurons = 9
+m_neurons = 9
+som = MiniSom(n_neurons, m_neurons, X_train.shape[1], sigma=1.5, learning_rate=.5, 
+              neighborhood_function='gaussian', random_seed=0)
+
+som.pca_weights_init(X_train.values)
+som.train(X_train.values, 1000, verbose=True)  # random training
 
 # Create simple feature collections
 feature_collections_1 = np.array([[i] for i in X_train.columns ])
+feature_collections_2 = pd.array([["area", "perimeter", "compactness"], ["length_kernel", "width_kernel","asymmetry_coefficient"]])
+
+trained_soms_layer_1 = train_som_layer(data = X_train_b,  grid_size = [8,8], feature_collections = feature_collections_1)
+convolv_layer_one_train = create_convolution_layer(data = X_train_b, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
+trained_soms_layer_2 = train_som_layer(data = convolv_layer_one_train,  grid_size = [8,8], feature_collections = feature_collections_2,  convolutional_layer=True)
+convolv_layer_two_train = create_convolution_layer(data = convolv_layer_one_train, trained_soms = trained_soms_layer_2,  feature_collections = feature_collections_2,   normalise = False)
 
 
-trained_soms_layer_1 = train_som_layer(data = X_train, n_samples=X_train.shape[0], feature_collections = feature_collections_1)
-convolv_layer_one_train = create_convolution_layer_only_winning_som(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
-final_som = create_train_som(data= convolv_layer_one_train.values, n_samples=X_train.shape[0], n_features = convolv_layer_one_train.shape[1], convolutional_layer=False)
+trained_soms_layer_test = train_som_layer(data = X_test_b,  grid_size = [8,8], feature_collections = feature_collections_1)
+convolv_layer_one_test = create_convolution_layer(data = X_test_b, trained_soms = trained_soms_layer_test,  feature_collections = feature_collections_1,   normalise = False)
+trained_soms_layer_2_test = train_som_layer(data = convolv_layer_one_test,  grid_size = [8,8], feature_collections = feature_collections_2,  convolutional_layer=True)
+convolv_layer_two_test = create_convolution_layer(data = convolv_layer_one_test, trained_soms = trained_soms_layer_2_test,  feature_collections = feature_collections_2,   normalise = False)
 
 
-evaluated_data = label_output(som = final_som, data = X_train, targets = y_train, final_convolution=convolv_layer_one_train,convolutional_layer = False, original = True)
+unnested_test = unnest_data(convolv_layer_two_test)
+unnested_train = unnest_data(convolv_layer_two_train)
+
+classified = classify(final_som, unnested_test, unnested_train, y_train_b)
+
+len(classified)
+len(y_test_b)
+pd.array(list((zip(classified, y_test_b))))
+
+final_som = create_train_som(data= convolv_layer_two_train, grid_size=[10,10], n_features = convolv_layer_two_train.shape[1], convolutional_layer=True)
+purity = evaluate_purity(final_som, convolv_layer_two_train, y_train, convolutional_layer=True)
+purity['weighted_node_purity'].sum(axis=0)
+
+
+
+evaluated_data = label_output(som = final_som, data = X_train, targets = y_train, final_convolution=convolv_layer_two_train,convolutional_layer = True, original = True)
 evaluated_data["correct"] = np.where( (evaluated_data["default_class"] == evaluated_data['evaluated_class']), 1, 0)
 correct_class = sum(evaluated_data["correct"])/len(evaluated_data.index)
 class_results.append(correct_class)
 
 
 
-plt.figure(figsize=(8, 8))
+data_values = unnest_data(convolv_layer_two_train)
+winmap = final_som.labels_map(data_values, y_train)
 
-plt.pcolor(final_som.distance_map().T, cmap='bone_r')  # plotting the distance map as background
-plt.colorbar()
+# winmap = som.labels_map(X_train.values, y_train)
+
+
+
+
+winmapDFT = pd.DataFrame(winmap).T
+winmapDFT['class'] = winmapDFT.apply(lambda x: winmapDFT.columns[x.argmax()], axis = 1).astype(str) 
+winmapDFT = winmapDFT.reset_index()
+winmapDFT["max_val_node"] = winmapDFT[[1,2,3]].max(axis=1)
+# Create a column that has the total observations for each node
+winmapDFT["total_obs_node"] = winmapDFT[[1,2,3]].sum(axis=1)
+# Calculate the simple node purity (a more complex purity might include some sort of penalty for having moltiple obs set off)
+winmapDFT["node_purity"] = winmapDFT["max_val_node"] / winmapDFT["total_obs_node"]
+
+
+
+import plotly.express as px
+data_values = unnest_data(convolv_layer_two_train)
+winmap = final_som.labels_map(data_values, y_train)
+winmapDFT = pd.DataFrame(winmap).T
+winmapDFT['class'] = winmapDFT.apply(lambda x: winmapDFT.columns[x.argmax()], axis = 1).astype(str) 
+winmapDFT = winmapDFT.reset_index()
+winmapDFT["max_val_node"] = winmapDFT[[1,2,3]].max(axis=1)
+winmapDFT["total_obs_node"] = winmapDFT[[1,2,3]].sum(axis=1)
+winmapDFT["node_purity"] = winmapDFT["max_val_node"] / winmapDFT["total_obs_node"]
+winmapDFT_pure = winmapDFT[(winmapDFT.node_purity != 1)]
+
+plt.figure(figsize=(10, 10))
+plt = px.scatter(winmapDFT, x="level_0", y="level_1", color="class")
+plt.update_traces(marker_size=25)
+plt.show()
+
+
+
+
+winmapDFT
+
+df["size"].astype(str) 
+# plt.pcolor(final_som.distance_map().T, cmap='bone_r')  # plotting the distance map as background
+# plt.colorbar()
+import plotly.express as px
+
+plt = px.scatter(x=winmapDFT["level_0"], y=winmapDFT["level_1"])
+plt.show()
+
+plt = px.scatter(winmapDFT_pure, x="level_0", y="level_1", color="class")
+plt.update_traces(marker_size=25)
+plt.show()
 
 # Plotting the response for each pattern in the iris dataset
 # different colors and markers for each label
 markers = ['o', 's', 'D']
 colors = ['C0', 'C1', 'C2']
-for cnt, xx in enumerate(convolv_layer_one_train.values):
+for row in winmapDFT.shape[0]:
+    x = winmapDFT.iloc[row]
+    y = winmapDFT.iloc[row]['level_1']
+    # palce a marker on the winning position for the sample xx
+    plt.plot(x+.5, x+.5, markers[y_train[cnt]-1], markerfacecolor='None',
+             markeredgecolor=colors[y_train[cnt]-1], markersize=12, markeredgewidth=2)
+
+plt.show()
+
+
+winmapDFT = pd.DataFrame(winmap).T.rename_axis('node_coordinants').rename_axis(None, 1)
+
+
+    # Pull the max value for that node
+    winmapDFT["max_val_node"] = winmapDFT.max(axis=1)
+    # Create a column that has the total observations for each node
+    winmapDFT["total_obs_node"] = winmapDFT.iloc[:, 0:(len(winmapDFT.columns)-1)].sum(axis=1)
+    # Calculate the simple node purity (a more complex purity might include some sort of penalty for having moltiple obs set off)
+    winmapDFT["node_purity"] = winmapDFT["max_val_node"] / winmapDFT["total_obs_node"]
+    # Calculate the weight of each node
+    winmapDFT["weight"] = winmapDFT["total_obs_node"] / winmapDFT['total_obs_node'].sum(axis=0)
+    # Calculate the weighted node purity
+    winmapDFT["weighted_node_purity"] = winmapDFT["node_purity"] * winmapDFT["weight"]
+    # Calculate the overall purity for the layer
+    node_purity = winmapDFT['node_purity'].mean(axis=0)
+    weighted_node_purity = winmapDFT['weighted_node_purity'].sum(axis=0)
+
+
+# Define the default class
+default_class = np.sum(list(winmap.values())).most_common()[0][0]
+result_classes = []
+# Extract the winning node for each observation.
+for d in data_values:
+    win_position = final_som.winner(d)
+    if win_position in winmap:
+        result_classes.append(winmap[win_position].most_common()[0][0])
+
+    else:
+        result_classes.append(default_class)
+
+if original:
+    output = data.copy(deep=True)
+    output["default_class"] = targets
+    output["evaluated_class"] = result_classes
+    return(output)
+else:
+    output = final_convolution.copy(deep=True)
+    output["default_class"] = targets
+    output["evaluated_class"] = result_classes
+    return(output)
+
+plt.figure(figsize=(10, 10))
+
+# plt.pcolor(final_som.distance_map().T, cmap='bone_r')  # plotting the distance map as background
+# plt.colorbar()
+
+# Plotting the response for each pattern in the iris dataset
+# different colors and markers for each label
+markers = ['o', 's', 'D']
+colors = ['C0', 'C1', 'C2']
+for cnt, xx in enumerate(unnest_data(convolv_layer_one_train)):
     w = final_som.winner(xx)  # getting the winner
     # palce a marker on the winning position for the sample xx
     plt.plot(w[0]+.5, w[1]+.5, markers[y_train[cnt]-1], markerfacecolor='None',
