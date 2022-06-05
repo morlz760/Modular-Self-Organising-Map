@@ -121,7 +121,7 @@ def unnest_data(data):
         return(unnested_data)
 
 # Create and train a SOM
-def create_train_som(data, n_features, n_samples, convolutional_layer = False):
+def create_train_som(data, n_features, grid_size = [8,8], convolutional_layer = False):
     # Create SOM dimensions
     if convolutional_layer:
         data = unnest_data(data)
@@ -129,14 +129,14 @@ def create_train_som(data, n_features, n_samples, convolutional_layer = False):
     else:
         data = data
     # Create SOM dimensions
-    som_nurons = int((math.sqrt(5*math.sqrt(n_samples))))
-    x = som_nurons
-    y = som_nurons
+    # som_nurons = int((math.sqrt(5*math.sqrt(n_samples))))
+    x = grid_size[0]
+    y = grid_size[1]
     print("Som Neurons", x*y)
     #Create and train SOM
-    som = MiniSom(x, y, n_features, sigma=0.3, learning_rate=0.5) # initialization of x X y som
+    som = MiniSom(x, y, n_features, sigma=1.5, learning_rate=0.5, neighborhood_function='gaussian', random_seed=0) # initialization of x X y som
     som.random_weights_init(data)
-    som.train_random(data,100, verbose=False) # training with 100 iterations
+    som.train_random(data, 1000, verbose=False) # training with 100 iterations
     return som
 
 def data_prep(data):
@@ -158,7 +158,7 @@ def data_vectorisation(data):
     else:
         return(data_values_array)
 
-def train_som_layer(data, n_samples, feature_collections, convolutional_layer = False):
+def train_som_layer(data, feature_collections, grid_size = [8,8], convolutional_layer = False):
     # create a dictionary to store the trained SOM
     trained_soms = {}
     # For each feature in the data set we will train a SOM. I intend to update this so that we can pass this function a list of combos we want to 
@@ -177,7 +177,7 @@ def train_som_layer(data, n_samples, feature_collections, convolutional_layer = 
         # train_value_array = train_value
         print("n features for creating SOM:", n_features)
         observation_key = "".join(map(str,feature_set))
-        som = create_train_som(train_value_array, n_features, n_samples)
+        som = create_train_som(train_value_array, n_features, grid_size)
         trained_soms.setdefault(observation_key,[]).append(som)
     return(trained_soms)
 
@@ -205,7 +205,7 @@ def create_convolution_layer_only_winning_som(data, trained_soms, feature_collec
         som = trained_soms.get(observation_key)[0]
         # Extract the y dimension of the given SOM.
         som_y_dim = max(som._neigy) + 1
-        print("Y som dims: ",som_y_dim)
+        # print("Y som dims: ",som_y_dim)
         winning_node_value = []
         # loop through the array of observations and extract the winning node and its distance for the given observation.
         for observation in train_value_array:
@@ -213,7 +213,7 @@ def create_convolution_layer_only_winning_som(data, trained_soms, feature_collec
             node_value = convert_coordinants(winning_pos, som_y_dim)
             winning_node_value.append(node_value)
         if normalise:
-            winning_node_distance_normalised = preprocessing.normalize(node_value, axis = 0).flatten()
+            winning_node_distance_normalised = preprocessing.scale(node_value, axis = 0).flatten()
             dataframe[observation_key] = winning_node_distance_normalised
         else:
             dataframe[observation_key] = winning_node_value
@@ -245,7 +245,7 @@ def create_convolution_layer_zw(data, trained_soms, feature_collections, normali
         som_y_dim = max(som._neigy) + 1
         print("Y som dims: ",som_y_dim)
         # extract the distance from weights
-        distance_map = som._distance_from_weights(train_value_array)
+        distance_map = som._distance_from_weights(train_value_array) # Sometimes this returns an error, not sure why though.
         # Create a winning node array to store the winning nodes for the feature.
         winning_node_value = []
         winning_node_distance = []
@@ -261,9 +261,9 @@ def create_convolution_layer_zw(data, trained_soms, feature_collections, normali
         # Here we evaluate if we want to normalise our data or not. In this example we are normalising column wise. 
         if normalise:
             winning_node_value_array = pd.array(winning_node_value, dtype=np.int32).reshape(-1,1)
-            winning_node_value_normalised = preprocessing.normalize(winning_node_value_array, axis = 0).flatten()
+            winning_node_value_normalised = preprocessing.scale(winning_node_value_array, axis = 0).flatten()
             winning_node_distance_array = pd.array(winning_node_distance, dtype=np.float32).reshape(-1,1)
-            winning_node_distance_normalised = preprocessing.normalize(winning_node_distance_array, axis = 0).flatten()
+            winning_node_distance_normalised = preprocessing.scale(winning_node_distance_array, axis = 0).flatten()
             winning_nodes = np.array(list(zip(winning_node_value_normalised, winning_node_distance_normalised))).tolist()
             dataframe[observation_key] = winning_nodes
         else:
