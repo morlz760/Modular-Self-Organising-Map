@@ -10,16 +10,10 @@ from sklearn import preprocessing
 import statistics
 
 
-# Read in our data and prepare it
-columns=['area', 'perimeter', 'compactness', 'length_kernel', 'width_kernel',
-                   'asymmetry_coefficient', 'length_kernel_groove', 'target']
-
-data = pd.read_csv('https://archive.ics.uci.edu/ml/machine-learning-databases/00236/seeds_dataset.txt', 
-                    names=columns, 
-                   sep='\t+', engine='python')
-labels = data['target'].values
-label_names = {1:'Kama', 2:'Rosa', 3:'Canadian'}
-d = data[data.columns[0:7]]
+data = pd.read_csv("../data/winequality-red.csv", sep = ";")
+labels = data['quality'].values
+# label_names = {1:'Kama', 2:'Rosa', 3:'Canadian'}
+d = data[data.columns[0:11]]
 new_d = data[data.columns[6:7]]
 
 names = d.columns
@@ -27,17 +21,9 @@ d = preprocessing.normalize(d, axis=1)
 d_normalised = pd.DataFrame(d, columns=names)
 
 
-new_names = new_d.columns
-new_d = preprocessing.normalize(new_d, axis=1)
-new_d_normalised = pd.DataFrame(new_d, columns=new_names)
-
-# Create the test train split of our data. Do we even need this? As we're Implementing a unsupervised learning algo, do we want this?
-X_train, X_test, y_train, y_test = train_test_split(d_normalised, labels)
-
-X_train_b, X_test_b, y_train_b, y_test_b = train_test_split(new_d_normalised, labels)
-
 X_train = d_normalised
 y_train = labels
+
 
 # Things we need to think about
 # - Cross validation
@@ -49,13 +35,13 @@ y_train = labels
 # ________________________________ CREATE A SOM TRAINED OFF ALL VALUES ____________________________________
 
 col_results_purity = []
-for n_cols in range(len(X_train.columns)):
+for n_cols in range(1,12):
     print(n_cols)
     data_for_evaluation = X_train[X_train.columns[0:n_cols]]
     purity_results = []
     for _ in range(10):
     # Train the SOM
-        standard_som = create_train_som(data=data_for_evaluation.values, grid_size=[8,8], n_features = data_for_evaluation.shape[1], convolutional_layer=False)
+        standard_som = create_train_som(data=data_for_evaluation.values, n_features= data_for_evaluation.shape[1], convolutional_layer=False, grid_size=[24,24])
         purity = evaluate_purity(standard_som, data_for_evaluation.values, y_train)
         purity_results.append(purity)
     col_results_purity.append(statistics.mean(purity_results))
@@ -65,7 +51,21 @@ d = {"structure": "SOM", "n_features": list(range(len(X_train.columns))), 'purit
 dfs = pd.DataFrame(data=d)
 dfs["n_features"] = dfs["n_features"].apply(lambda x: x + 1)
 
+plot_som_win_map(X_train.values, y_train, standard_som, title = "Som Win Map", sampled_layer = False)
 
+data_values = X_train.values
+# Create the dataframe to plot.
+winmap = pd.DataFrame()
+winmap = standard_som.labels_map(data_values, y_train)
+winmapDFT = pd.DataFrame(winmap).T
+winmapDFT['class'] = winmapDFT.apply(lambda x: winmapDFT.columns[x.argmax()], axis = 1).astype(str) 
+winmapDFT = winmapDFT.reset_index()
+winmapDFT["max_val_node"] = winmapDFT[[5,6,7,4,8,3]].max(axis=1)
+winmapDFT["total_obs_node"] = winmapDFT[[5,6,7,4,8,3]].sum(axis=1)
+winmapDFT["node_purity"] = winmapDFT["max_val_node"] / winmapDFT["total_obs_node"]
+# plot the data
+fig = px.scatter(winmapDFT, x="level_0", y="level_1", color="class", size = "node_purity")
+fig.show()
 
 # ________________________________ CREATE A SINGLE LAYER MDSOM ____________________________________
 
@@ -78,13 +78,13 @@ feature_collections_1 = pd.array([["area", "perimeter","compactness", "length_ke
 
 ###########  ################
 col_results_purity = []
-for n_cols in range(1,8):
+for n_cols in range(1,12):
     feature_collections = feature_collections_1[0:n_cols]
     print(feature_collections)
     for _ in range(10):
         trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections, grid_size=[9,9])
         convolv_layer_one_train = create_convolution_layer_xyw(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections,   normalise = False)
-        final_som = create_train_som(data= convolv_layer_one_train, n_features = convolv_layer_one_train.shape[1]*3, convolutional_layer=True)
+        final_som = create_train_som(data= convolv_layer_one_train, n_features = convolv_layer_one_train.shape[1]*3, convolutional_layer=True, grid_size=[24,24])
         purity = evaluate_purity(final_som, convolv_layer_one_train, y_train, convolutional_layer=True)
         purity_results.append(purity)
     col_results_purity.append(statistics.mean(purity_results))
@@ -93,19 +93,75 @@ d = {"structure": "MDSOM", "n_features": list(range(len(X_train.columns))), 'pur
 dfmdsom = pd.DataFrame(data=d)
 dfmdsom["n_features"] = dfmdsom["n_features"].apply(lambda x: x + 1)
 
-
-
-final_results_mdsom = pd.concat([dfs, dfmdsom])
-fig = px.line(final_results_mdsom, x="n_features", y="purity", color = "structure", title='Evaluating Purity')
+set(winmapDFT[3])
+plot_som_win_map(convolv_layer_one_train, y_train, final_som, title = "Som Win Map", sampled_layer = True)
+    
+data_values = unnest_data(convolv_layer_one_train)
+# Create the dataframe to plot.
+winmap = pd.DataFrame()
+winmap = final_som.labels_map(data_values, labels)
+winmapDFT = pd.DataFrame(winmap).T
+winmapDFT['class'] = winmapDFT.apply(lambda x: winmapDFT.columns[x.argmax()], axis = 1).astype(str) 
+winmapDFT = winmapDFT.reset_index()
+winmapDFT["max_val_node"] = winmapDFT[[5,6,7,4,8,3]].max(axis=1)
+winmapDFT["total_obs_node"] = winmapDFT[[5,6,7,4,8,3]].sum(axis=1)
+winmapDFT["node_purity"] = winmapDFT["max_val_node"] / winmapDFT["total_obs_node"]
+# plot the data
+fig = px.scatter(winmapDFT, x="level_0", y="level_1", color="class", size = "node_purity")
 fig.show()
 
-plot_som_win_map(convolv_layer_one_train, y_train, final_som, title = "MDSOM Win Map", sampled_layer = True)
+fig.update_layout(
+    title="MDSOM Win Map - Complex Data",
+    template="simple_white",
+    autosize=False,
+    width=750,
+    height=600,
+    yaxis=dict(
+        title='Y coordinate',
+        titlefont_size=16,
+        tickfont_size=14,
+        tickmode='linear',
+        showgrid=True, 
+        mirror=True,
+        ticks='outside',
+        showline=True,
+        gridwidth=1,
+        gridcolor='#e0e0e0'
+    ),
+    xaxis=dict(
+        title='X coordinate',
+        titlefont_size=16,
+        tickfont_size=14,
+        tickmode='linear',
+        showgrid=True, 
+        mirror=True,
+        ticks='outside',
+        showline=True,
+        gridwidth=1,
+        gridcolor='#e0e0e0'
+    ),
+        legend=dict(
+        title='Allocated Class',
+        bgcolor='rgba(255, 255, 255, 0)',
+        bordercolor='rgba(255, 255, 255, 0)'
+    )
+    # paper_bgcolor='rgba(0,0,0,0)',
+    # plot_bgcolor='rgba(0,0,0,0)'
+)
 
 
+
+set(winmapDFT["node_purity"])
+
+winmapDFT[(winmapDFT.node_purity.isnull())]
+
+final_results_mdsom_complex = pd.concat([dfs, dfmdsom])
+fig = px.line(final_results_mdsom_complex, x="n_features", y="purity", color = "structure", title='Evaluating Purity')
+fig.show()
 
 
 fig.update_layout(
-    title='Evaluating Perforamce With Additional Features - Simple Data',
+    title='Evaluating Perforamce Over Differing Grid Sizes - Complex Data',
     template="simple_white",
     autosize=False,
     width=750,

@@ -1,4 +1,4 @@
-# This script is going to be an example of how to construct each of the differing MDSOM structures.
+# This script 
 
 from mdsom_function_dev_convo_layer import *
 import pandas as pd
@@ -27,27 +27,13 @@ names = d.columns
 d = preprocessing.normalize(d, axis=1)
 d_normalised = pd.DataFrame(d, columns=names)
 
-
-new_names = new_d.columns
-new_d = preprocessing.normalize(new_d, axis=1)
-new_d_normalised = pd.DataFrame(new_d, columns=new_names)
-
 X_train = d_normalised
 y_train = labels
 
-# Things we need to think about
-# - Cross validation
-# - Visualisation
-# - Evaluation in terms of nodes
-
-# Our benchmark SOM will always have the same number of nodes as our final SOM .
-
-# Benchmark PCA plot
-x = pca_plot(data = X_train, target_array= y_train)
-x.show()
 
 # ________________________________ CREATE A SOM TRAINED OFF ALL VALUES ____________________________________
 
+# Define grid size's
 grid_size_variations = [[6,6], [7,7] ,[8,8], [9,9],[10,10], [12,12], [16,16], [20,20], [24,24]]
 
 col_results_purity = []
@@ -68,19 +54,9 @@ dfs["grid_size"] = dfs["grid_size"].apply(lambda x: ' x '.join(map(str, x)))
 fig = px.line(dfs, x="grid_size", y="purity", text="purity",title='Evaluating Purity')
 fig.show()
 
-
-# x = pca_plot(data = data_for_evaluation, target_array= evaluated_data['evaluated_class'].values)
-# x.savefig('visulisations/standard_som_all_features.png', bbox_inches='tight')
-# x.show()
-
-# What are my options here. 
-# I can just use the method from the original paper. Then just run it ten times. Show the two scores and the two plots
-# I feel like that isnt enough test cases. Ok so why dont I start with results from a single layer SOM. With all features from DS
-
 # ________________________________ CREATE SINGLE LAYER DSOM USING ONLY WINNING VALUE ____________________________________
 
 # Create simple feature collections
-feature_collections_1 = np.array([[i] for i in X_train.columns ])
 feature_collections_1 = pd.array([["area", "perimeter","compactness", "length_kernel","width_kernel","asymmetry_coefficient", "length_kernel_groove"]])
 ######## Results using only node location as single value index ##############
 grid_size_variations = [[6,6], [7,7] ,[8,8], [9,9],[10,10], [12,12], [16,16], [20,20], [24,24]]
@@ -200,6 +176,16 @@ d = {"sampling_method": "xyw",'grid_size': grid_size_variations, 'purity': col_r
 dfxyw = pd.DataFrame(data=d)
 dfxyw["grid_size"] = dfxyw["grid_size"].apply(lambda x: ' x '.join(map(str, x)))
 
+# Create a visulisation of the final SOM to investigate 
+trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1, grid_size=[9,9])
+convolv_layer_one_train = create_convolution_layer_xyw(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
+final_som = create_train_som(data= convolv_layer_one_train, n_features = convolv_layer_one_train.shape[1]*3, convolutional_layer=True)
+
+som = trained_soms_layer_1.get("areaperimetercompactnesslength_kernelwidth_kernelasymmetry_coefficientlength_kernel_groove")
+
+plot_som_win_map(X_train, y_train, som[0], title = "Som Win Map", sampled_layer = False)
+plot_som_win_map(convolv_layer_one_train, y_train, final_som, title = "MSOM Win Map - Simple Data", sampled_layer = True)
+
 
 ########### Results using node location in vector of 0's ################
 col_results_purity = []
@@ -245,20 +231,14 @@ fig.show()
 
 
 
-    # evaluated_data = label_output(som = final_som, data = X_train, targets = y_train, final_convolution=convolv_layer_one_train,convolutional_layer = True, original = True)
-    # evaluated_data["correct"] = np.where( (evaluated_data["default_class"] == evaluated_data['evaluated_class']), 1, 0)
-    # correct_class = sum(evaluated_data["correct"])/len(evaluated_data.index)
-    # class_results.append(correct_class)
-
-)
-
-final_results = pd.concat([dfs, dfz, dfzw, dfzw_n, dfxyw, dfg, dfgw])
-fig = px.line(final_results, x="grid_size", y="purity",  color='sampling_method',title='Evaluating Purity')
+# Combine all of the results into one dataframe and viualise
+final_results = pd.concat([dfs, dfz, dfzw, dfxyw, dfg, dfgw])
+fig = px.line(final_results, x="grid_size", y="purity",  color='sampling_method',symbol="sampling_method", title='Evaluating Purity')
 fig.show()
 
 
 fig.update_layout(
-    title='Evaluating Perforamce Over Differing Grid Sizes',
+    title='Evaluating Perforamce Over Differing Grid Sizes - Dataset 1',
     template="simple_white",
     autosize=False,
     width=750,
@@ -300,38 +280,6 @@ fig.update_layout(
 
 
 
-
-
-
-
-
-
-
-import plotly.graph_objects as go
-
-win_map = standard_som.win_map(X_train.values)
-size=standard_som.distance_map().shape[0]
-qualities=np.empty((size,size))
-qualities[:]=np.NaN
-for position, values in win_map.items():
-    qualities[position[0], position[1]] = np.mean(abs(values-standard_som.get_weights()[position[0], position[1]]))
-
-layout = go.Layout(title='quality plot')
-fig = go.Figure(layout=layout)
-fig.add_trace(go.Heatmap(z=qualities, colorscale='Viridis'))
-fig.show()
-
-
-
-# Visualising the results
-
-
-
-from sklearn.decomposition import PCA
-pca = PCA(n_components=2)
-principalComponents = pca.fit_transform(x)
-principalDf = pd.DataFrame(data = principalComponents
-             , columns = ['principal component 1', 'principal component 2'])
 
 
 

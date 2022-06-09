@@ -49,20 +49,10 @@ x.show()
 # ________________________________ CREATE A SOM TRAINED OFF ALL VALUES ____________________________________
 
 
-    for _ in range(10):
-        # Train the SOM
-        standard_som = create_train_som(data=X_train.values, n_features=X_train.shape[1], grid_size = [8,8], convolutional_layer=False)
-        purity = evaluate_purity(standard_som, X_train.values, y_train)
-        purity_results.append(purity)
-    col_results_purity.append(statistics.mean(purity_results))
-
-d = {"sampling_method": "som", 'grid_size': grid_size_variations, 'purity': col_results_purity}
-dfs = pd.DataFrame(data=d)
-dfs["grid_size"] = dfs["grid_size"].apply(lambda x: ' x '.join(map(str, x)))
-fig = px.line(dfs, x="grid_size", y="purity", text="purity",title='Evaluating Purity')
-fig.show()
+standard_som = create_train_som(data=X_train.values, n_features=X_train.shape[1], grid_size = [8,8], convolutional_layer=False)
 
 
+plot_som_win_map(X_train, y_train, standard_som, title = "Som Win Map", sampled_layer = False)
 # x = pca_plot(data = data_for_evaluation, target_array= evaluated_data['evaluated_class'].values)
 # x.savefig('visulisations/standard_som_all_features.png', bbox_inches='tight')
 # x.show()
@@ -83,25 +73,20 @@ feature_collections_1 = pd.array([["area", "perimeter","compactness", "length_ke
 
 purity_results = []
 for _ in range(10):
-    trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1, grid_size=[9,9])
+    trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1, grid_size=[8,8])
     convolv_layer_one_train = create_convolution_layer_xyw(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
     final_som = create_train_som(data= convolv_layer_one_train, n_features = convolv_layer_one_train.shape[1]*3, convolutional_layer=True)
     purity = evaluate_purity(final_som, convolv_layer_one_train, y_train, convolutional_layer=True)
     purity_results.append(purity)
 statistics.mean(purity_results)
 
-d = {"sampling_method": "xyw",'grid_size': grid_size_variations, 'purity': col_results_purity}
-dfxyw = pd.DataFrame(data=d)
-dfxyw["grid_size"] = dfxyw["grid_size"].apply(lambda x: ' x '.join(map(str, x)))
+
 som = trained_soms_layer_1.get("areaperimetercompactnesslength_kernelwidth_kernelasymmetry_coefficientlength_kernel_groove")
 
-# plot = som_map_plot(X_train, y_train, som, convolutional_layer = False)
-plot.show() 
+plot_som_win_map(X_train, y_train, som[0], title = "Som Win Map", sampled_layer = False)
+# Evaluating Final Layer Performance - DSOM 2 layers
 
-
-
-
-def plot_som_win_map(data, labels, som, sampled_layer = False):
+def plot_som_win_map(data, labels, som, title = "Som Win Map", sampled_layer = False):
     import plotly.express as px
     if sampled_layer:
         data_values = unnest_data(data)
@@ -119,7 +104,7 @@ def plot_som_win_map(data, labels, som, sampled_layer = False):
     # plot the data
     fig = px.scatter(winmapDFT, x="level_0", y="level_1", color="class", size="node_purity")
     fig.update_layout(
-        title='Evaluating Final Layer Performance - 2 layers',
+        title=title,
         template="simple_white",
         autosize=False,
         width=750,
