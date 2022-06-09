@@ -289,3 +289,60 @@ def som_map_plot(data, labels, som, convolutional_layer = False):
     plt = px.scatter(winmapDFT, x="level_0", y="level_1", color="class")
     plt.update_traces(marker_size=25)
     return(plt)
+
+def plot_som_win_map(data, labels, som, title = "Som Win Map", sampled_layer = False):
+    import plotly.express as px
+    if sampled_layer:
+        data_values = unnest_data(data)
+    else:
+        data_values = data.values
+    # Create the dataframe to plot.
+    winmap = pd.DataFrame()
+    winmap = som.labels_map(data_values, labels)
+    winmapDFT = pd.DataFrame(winmap).T
+    winmapDFT['class'] = winmapDFT.apply(lambda x: winmapDFT.columns[x.argmax()], axis = 1).astype(str) 
+    winmapDFT = winmapDFT.reset_index()
+    winmapDFT["max_val_node"] = winmapDFT[[1,2,3]].max(axis=1)
+    winmapDFT["total_obs_node"] = winmapDFT[[1,2,3]].sum(axis=1)
+    winmapDFT["node_purity"] = winmapDFT["max_val_node"] / winmapDFT["total_obs_node"]
+    # plot the data
+    fig = px.scatter(winmapDFT, x="level_0", y="level_1", color="class", size="node_purity")
+    fig.update_layout(
+        title=title,
+        template="simple_white",
+        autosize=False,
+        width=750,
+        height=600,
+        yaxis=dict(
+            title='Y coordinate',
+            titlefont_size=16,
+            tickfont_size=14,
+            tickmode='linear',
+            showgrid=True, 
+            mirror=True,
+            ticks='outside',
+            showline=True,
+            gridwidth=1,
+            gridcolor='#e0e0e0'
+        ),
+        xaxis=dict(
+            title='X coordinate',
+            titlefont_size=16,
+            tickfont_size=14,
+            tickmode='linear',
+            showgrid=True, 
+            mirror=True,
+            ticks='outside',
+            showline=True,
+            gridwidth=1,
+            gridcolor='#e0e0e0'
+        ),
+            legend=dict(
+            title='Allocated Class',
+            bgcolor='rgba(255, 255, 255, 0)',
+            bordercolor='rgba(255, 255, 255, 0)'
+        )
+        # paper_bgcolor='rgba(0,0,0,0)',
+        # plot_bgcolor='rgba(0,0,0,0)'
+    )
+    fig.show()
