@@ -107,7 +107,7 @@ def unnest_data(data):
         return(unnested_data)
 
 # Create and train a SOM
-def create_train_som(data, n_features, grid_size = [8,8], convolutional_layer = False):
+def create_train_som(data, n_features, grid_size = [9,9], convolutional_layer = False):
     # Create SOM dimensions
     if convolutional_layer:
         data = unnest_data(data)
@@ -173,7 +173,7 @@ def train_som_layer(data, feature_collections, grid_size = [8,8], convolutional_
 # have to create a new convolutional layer 
 
 
-def create_convolution_layer_only_winning_som(data, trained_soms, feature_collections, normalise=False):
+def create_sampling_layer_only_winning_som(data, trained_soms, feature_collections, normalise=False):
     dataframe = pd.DataFrame()
     # loop through each of the featuresets that have been used to build the SOM's to extarct the output from these values
     # that will be used to create the convolv layer.
@@ -207,7 +207,7 @@ def create_convolution_layer_only_winning_som(data, trained_soms, feature_collec
 
 
 # z = concatenated(x,y), w = weight
-def create_convolution_layer_zw(data, trained_soms, feature_collections, normalise=False):
+def create_sampling_layer_zw(data, trained_soms, feature_collections, normalise=False):
     # Create empty dataframe to store the winning nodes from our trained SOM's
     dataframe = pd.DataFrame()
     # loop through each of the featuresets that have been used to build the SOM's to extarct the output from these values
@@ -257,8 +257,63 @@ def create_convolution_layer_zw(data, trained_soms, feature_collections, normali
             dataframe[observation_key] = winning_nodes
     return(dataframe)
 
+# This keeps the x y coordiants
+def create_sampling_layer_xy(data, trained_soms, feature_collections, normalise=False):
+    # Create empty dataframe to store the winning nodes from our trained SOM's
+    dataframe = pd.DataFrame()
+    # loop through each of the featuresets that have been used to build the SOM's to extarct the output from these values
+    # that will be used to create the convolv layer.
+    for feature_set in feature_collections:
+        # So for each feature set extarct the corrosponding data from the training data.
+        print("Creating convolutional layer for: ", feature_set)
+        train_value = data[feature_set]
+        if len(train_value.dtypes.unique()) > 1:
+            print("Your feature sets have incompatable data formats")
+        if (train_value.dtypes == 'O').all():
+            train_value_array = unnest_data(train_value)
+        else:
+            train_value_array = train_value.values
+        # Convert that data into an array, if the feature set is only one feature we will need to put it into an array
+        # so that we are able to pass it to our SOM and extrac the values.
+        # extract the SOM that was trained on the given feature(s)
+        observation_key = "".join(map(str,feature_set))
+        som = trained_soms.get(observation_key)[0]
+        # Extract the y dimension of the given SOM.
+        som_y_dim = max(som._neigy) + 1
+        print("Y som dims: ",som_y_dim)
+        # extract the distance from weights
+        distance_map = som._distance_from_weights(train_value_array)
+        # Create a winning node array to store the winning nodes for the feature.
+        winning_node_value = []
+        winning_node_distance = []
+        # loop through the array of observations and extract the winning node and its distance for the given observation.
+        for observation in train_value_array:
+            winning_pos = som.winner(observation)
+            node_distance = distance_map[winning_pos]
+            # We now convert this coordinant into a numerical value so we can feed it to our next layer, to to do this properly
+            # we need the y value of the SOM as that helps us convery coords to a single didget.
+            winning_pos = pd.array(winning_pos, dtype=np.int32)
+            # print(winning_pos)
+            winning_node_value.append(winning_pos)
+            # print(winning_node_value)
+            winning_node_distance.append(node_distance)
+        # Here we evaluate if we want to normalise our data or not. In this example we are normalising column wise. 
+        if normalise:
+            # print(winning_node_value_array)
+            winning_node_value_normalised = preprocessing.normalize(winning_node_value_array, axis = 0).flatten()
+            winning_node_distance_array = pd.array(winning_node_distance, dtype=np.float32).reshape(-1,1)
+            winning_node_distance_normalised = preprocessing.normalize(winning_node_distance_array, axis = 0).flatten()
+            winning_nodes = np.array(list(zip(winning_node_value_normalised, winning_node_distance_normalised))).tolist()
+            dataframe[observation_key] = winning_nodes
+        else:
+            winning_nodes = np.array(list(zip(winning_node_value, winning_node_distance))).tolist()
+            winning_node_array = np.array([np.hstack(i) for i in winning_nodes]).tolist()
+            dataframe[observation_key] = winning_node_value
+    return(dataframe)
+
+
 # This keeps the x y coordiants and the weight
-def create_convolution_layer_xyw(data, trained_soms, feature_collections, normalise=False):
+def create_sampling_layer_xyw(data, trained_soms, feature_collections, normalise=False):
     # Create empty dataframe to store the winning nodes from our trained SOM's
     dataframe = pd.DataFrame()
     # loop through each of the featuresets that have been used to build the SOM's to extarct the output from these values
@@ -312,7 +367,7 @@ def create_convolution_layer_xyw(data, trained_soms, feature_collections, normal
     return(dataframe)
 
 # This convolutional layer converts the grid to 00000000001000000000 passes it as a vector but uses a weight instead of a flag
-def create_convolution_layer_g_w(data, trained_soms, feature_collections, normalise=False):
+def create_sampling_layer_g_w(data, trained_soms, feature_collections, normalise=False):
     dataframe = pd.DataFrame()
     for feature_set in feature_collections:
         print("Creating convolutional layer for: ", feature_set)
@@ -332,7 +387,7 @@ def create_convolution_layer_g_w(data, trained_soms, feature_collections, normal
         for observation in train_value_array:
             winning_pos = som.winner(observation)
             node_distance = distance_map[winning_pos]
-            node_value = convert_coordinants(winning_pos, som_y_dim)
+            node_value = som_y_dim*(winning_pos[0] - 1) + (winning_pos[1] - 1)
             listofzeros = [0] * (som_y_dim**2)
             listofzeros[node_value]=node_distance
             winning_node_value.append(listofzeros)
@@ -340,7 +395,7 @@ def create_convolution_layer_g_w(data, trained_soms, feature_collections, normal
     return(dataframe)
 
 # This convolutional layer converts the grid to 00000000001000000000 passes it as a vector
-def create_convolution_layer_g(data, trained_soms, feature_collections, normalise=False):
+def create_sampling_layer_g(data, trained_soms, feature_collections, normalise=False):
     dataframe = pd.DataFrame()
     for feature_set in feature_collections:
         print("Creating convolutional layer for: ", feature_set)
@@ -359,8 +414,7 @@ def create_convolution_layer_g(data, trained_soms, feature_collections, normalis
         winning_node_value = []
         for observation in train_value_array:
             winning_pos = som.winner(observation)
-            node_distance = distance_map[winning_pos]
-            node_value = convert_coordinants(winning_pos, som_y_dim)
+            node_value =  som_y_dim*(winning_pos[0] - 1) + (winning_pos[1] - 1)
             listofzeros = [0] * (som_y_dim**2)
             listofzeros[node_value]=1
             winning_node_value.append(listofzeros)

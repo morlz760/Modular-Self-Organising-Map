@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 # from sklearn.metrics import classification_report
 from sklearn import preprocessing
 import statistics
-
+import plotly.express as px
 
 data = pd.read_csv("../data/winequality-red.csv", sep = ";")
 labels = data['quality'].values
@@ -51,117 +51,90 @@ d = {"structure": "SOM", "n_features": list(range(len(X_train.columns))), 'purit
 dfs = pd.DataFrame(data=d)
 dfs["n_features"] = dfs["n_features"].apply(lambda x: x + 1)
 
-plot_som_win_map(X_train.values, y_train, standard_som, title = "Som Win Map", sampled_layer = False)
+standard_som = create_train_som(data=X_train.values, n_features= X_train.shape[1], convolutional_layer=False, grid_size=[24,24])
+plot_som_win_map(X_train, y_train, standard_som, title = "Som Win Map - Complex Data", sampled_layer = False,  simple=False)
 
-data_values = X_train.values
-# Create the dataframe to plot.
-winmap = pd.DataFrame()
-winmap = standard_som.labels_map(data_values, y_train)
-winmapDFT = pd.DataFrame(winmap).T
-winmapDFT['class'] = winmapDFT.apply(lambda x: winmapDFT.columns[x.argmax()], axis = 1).astype(str) 
-winmapDFT = winmapDFT.reset_index()
-winmapDFT["max_val_node"] = winmapDFT[[5,6,7,4,8,3]].max(axis=1)
-winmapDFT["total_obs_node"] = winmapDFT[[5,6,7,4,8,3]].sum(axis=1)
-winmapDFT["node_purity"] = winmapDFT["max_val_node"] / winmapDFT["total_obs_node"]
-# plot the data
-fig = px.scatter(winmapDFT, x="level_0", y="level_1", color="class", size = "node_purity")
-fig.show()
 
 # ________________________________ CREATE A SINGLE LAYER MDSOM ____________________________________
 
 
 # Create simple feature collections
 feature_collections_1 = np.array([[i] for i in X_train.columns ])
-feature_collections_1 = pd.array([["area", "perimeter","compactness", "length_kernel","width_kernel","asymmetry_coefficient", "length_kernel_groove"]])
+feature_collections_1 = np.array([['fixed acidity', 'volatile acidity', 'citric acid', 'residual sugar',
+       'chlorides', 'free sulfur dioxide', 'total sulfur dioxide', 'density',
+       'pH', 'sulphates', 'alcohol']])
 ######## Results using only node location as single value index ##############
-# grid_size_variations = [[6,6], [7,7] ,[8,8], [9,9],[10,10], [12,12], [16,16], [20,20], [24,24]]
 
 ###########  ################
 col_results_purity = []
 for n_cols in range(1,12):
     feature_collections = feature_collections_1[0:n_cols]
+    purity_results = []
     print(feature_collections)
     for _ in range(10):
-        trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections, grid_size=[9,9])
-        convolv_layer_one_train = create_convolution_layer_xyw(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections,   normalise = False)
+        trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections, grid_size=[24,24])
+        sampling_layer_one_train = create_sampling_layer_xyw(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections,   normalise = False)
+        final_som = create_train_som(data= sampling_layer_one_train, n_features = sampling_layer_one_train.shape[1]*3, convolutional_layer=True, grid_size=[24,24])
+        purity = evaluate_purity(final_som, sampling_layer_one_train, y_train, convolutional_layer=True)
+        purity_results.append(purity)
+    col_results_purity.append(statistics.mean(purity_results))
+
+d = {"structure": "MSOM - Multiple Featuresets", "n_features": list(range(len(X_train.columns))), 'purity': col_results_purity}
+dfmsom = pd.DataFrame(data=d)
+dfmsom["n_features"] = dfmsom["n_features"].apply(lambda x: x + 1)
+
+plot_som_win_map(sampling_layer_one_train, y_train, final_som, title = "Som Win Map", sampled_layer = True, simple=False)
+
+# Train a MSOM 
+trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1, grid_size=[24,24])
+sampling_layer_one_train = create_convolution_layer_xyw(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1, normalise = False)
+final_som = create_train_som(data= sampling_layer_one_train, n_features = sampling_layer_one_train.shape[1]*3, convolutional_layer=True, grid_size=[24,24])
+
+plot_som_win_map(sampling_layer_one_train, y_train, final_som, title = "MSOM Win Map - Complex Data", sampled_layer = True, simple=False)
+
+# ________________________________ CREATE A SINGLE LAYER MDSOM (adding features to 1 featureset) ____________________________________
+
+feature_collections_1 = np.array([['fixed acidity', 'volatile acidity', 'citric acid', 'residual sugar',
+       'chlorides', 'free sulfur dioxide', 'total sulfur dioxide', 'density',
+       'pH', 'sulphates', 'alcohol']])
+######## Results using only node location as single value index ##############
+n_cols = 2
+np.array(list(feature_collections_1[0][0:n_cols]))
+
+
+###########  ################
+col_results_purity = []
+for n_cols in range(1,12):
+    feature_collections = np.array([feature_collections_1[0][0:n_cols]])
+    print(feature_collections)
+    purity_results = []
+    for _ in range(10):
+        trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections, grid_size=[20,20])
+        convolv_layer_one_train = create_sampling_layer_xyw(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections,   normalise = False)
         final_som = create_train_som(data= convolv_layer_one_train, n_features = convolv_layer_one_train.shape[1]*3, convolutional_layer=True, grid_size=[24,24])
         purity = evaluate_purity(final_som, convolv_layer_one_train, y_train, convolutional_layer=True)
         purity_results.append(purity)
     col_results_purity.append(statistics.mean(purity_results))
 
-d = {"structure": "MDSOM", "n_features": list(range(len(X_train.columns))), 'purity': col_results_purity}
-dfmdsom = pd.DataFrame(data=d)
-dfmdsom["n_features"] = dfmdsom["n_features"].apply(lambda x: x + 1)
+d = {"structure": "MSOM - 1 Featureset", "n_features": list(range(len(X_train.columns))), 'purity': col_results_purity}
+dfmsom1 = pd.DataFrame(data=d)
+dfmsom1["n_features"] = dfmsom1["n_features"].apply(lambda x: x + 1)
 
-set(winmapDFT[3])
-plot_som_win_map(convolv_layer_one_train, y_train, final_som, title = "Som Win Map", sampled_layer = True)
-    
-data_values = unnest_data(convolv_layer_one_train)
-# Create the dataframe to plot.
-winmap = pd.DataFrame()
-winmap = final_som.labels_map(data_values, labels)
-winmapDFT = pd.DataFrame(winmap).T
-winmapDFT['class'] = winmapDFT.apply(lambda x: winmapDFT.columns[x.argmax()], axis = 1).astype(str) 
-winmapDFT = winmapDFT.reset_index()
-winmapDFT["max_val_node"] = winmapDFT[[5,6,7,4,8,3]].max(axis=1)
-winmapDFT["total_obs_node"] = winmapDFT[[5,6,7,4,8,3]].sum(axis=1)
-winmapDFT["node_purity"] = winmapDFT["max_val_node"] / winmapDFT["total_obs_node"]
-# plot the data
-fig = px.scatter(winmapDFT, x="level_0", y="level_1", color="class", size = "node_purity")
-fig.show()
+plot_som_win_map(convolv_layer_one_train, y_train, final_som, title = "Som Win Map", sampled_layer = True, simple=False)
 
-fig.update_layout(
-    title="MDSOM Win Map - Complex Data",
-    template="simple_white",
-    autosize=False,
-    width=750,
-    height=600,
-    yaxis=dict(
-        title='Y coordinate',
-        titlefont_size=16,
-        tickfont_size=14,
-        tickmode='linear',
-        showgrid=True, 
-        mirror=True,
-        ticks='outside',
-        showline=True,
-        gridwidth=1,
-        gridcolor='#e0e0e0'
-    ),
-    xaxis=dict(
-        title='X coordinate',
-        titlefont_size=16,
-        tickfont_size=14,
-        tickmode='linear',
-        showgrid=True, 
-        mirror=True,
-        ticks='outside',
-        showline=True,
-        gridwidth=1,
-        gridcolor='#e0e0e0'
-    ),
-        legend=dict(
-        title='Allocated Class',
-        bgcolor='rgba(255, 255, 255, 0)',
-        bordercolor='rgba(255, 255, 255, 0)'
-    )
-    # paper_bgcolor='rgba(0,0,0,0)',
-    # plot_bgcolor='rgba(0,0,0,0)'
-)
+# Train a MSOM 
+trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1, grid_size=[24,24])
+convolv_layer_one_train = create_convolution_layer_xyw(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1, normalise = False)
+final_som = create_train_som(data= convolv_layer_one_train, n_features = convolv_layer_one_train.shape[1]*3, convolutional_layer=True, grid_size=[24,24])
+
+plot_som_win_map(convolv_layer_one_train, y_train, final_som, title = "MSOM Win Map - Complex Data", sampled_layer = True, simple=False)
 
 
-
-set(winmapDFT["node_purity"])
-
-winmapDFT[(winmapDFT.node_purity.isnull())]
-
-final_results_mdsom_complex = pd.concat([dfs, dfmdsom])
+# ----------------------------------- COMBINE all results and Create a chart to evaluate performance ---------------------------
+final_results_mdsom_complex = pd.concat([dfs, dfmsom, dfmsom1])
 fig = px.line(final_results_mdsom_complex, x="n_features", y="purity", color = "structure", title='Evaluating Purity')
-fig.show()
-
-
 fig.update_layout(
-    title='Evaluating Perforamce Over Differing Grid Sizes - Complex Data',
+    title='MSOM Evaluating Feature Additions - Complex Data',
     template="simple_white",
     autosize=False,
     width=750,
@@ -189,109 +162,24 @@ fig.update_layout(
         gridcolor='#e0e0e0'
     ),
     legend=dict(
-        title='Sampling Method',
-        x=0.78,
+        title='Structure',
+        x=0.62,
         y=0,
         bgcolor='rgba(255, 255, 255, 0)',
         bordercolor='rgba(255, 255, 255, 0)'
     )
-    # paper_bgcolor='rgba(0,0,0,0)',
-    # plot_bgcolor='rgba(0,0,0,0)'
 )
+fig.show()
 
 
 
-
-# Create out feature collections
-feature_collections_1 = np.array([[i] for i in X_train.columns ])
-feature_collections_1 = pd.array([["area", "perimeter"], ["compactness", "length_kernel"], ["width_kernel","asymmetry_coefficient"]])
-feature_collections_1 = pd.array([["area"], ["perimeter"]])
-# Results using only node location
-purity_results = []
-class_results = []
-
-for _ in range(10):
-    trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1)
-    convolv_layer_one_train = create_convolution_layer_only_winning_som(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
-    final_som = create_train_som(data= convolv_layer_one_train.values, n_features = convolv_layer_one_train.shape[1], convolutional_layer=False)
-    purity = evaluate_purity(final_som, convolv_layer_one_train.values, y_train, convolutional_layer=False)
-    purity_results.append(purity)
-    evaluated_data = label_output(som = final_som, data = X_train, targets = y_train, final_convolution=convolv_layer_one_train,convolutional_layer = False, original = True)
-    evaluated_data["correct"] = np.where( (evaluated_data["default_class"] == evaluated_data['evaluated_class']), 1, 0)
-    correct_class = sum(evaluated_data["correct"])/len(evaluated_data.index)
-    class_results.append(correct_class)
-
-statistics.mean(purity_results)
-statistics.mean(class_results)
-
-# Results using only node location normalised
-purity_results = []
-class_results = []
-
-for _ in range(10):
-    trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1)
-    convolv_layer_one_train = create_convolution_layer_only_winning_som(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = True)
-    final_som = create_train_som(data= convolv_layer_one_train.values, n_features = convolv_layer_one_train.shape[1], convolutional_layer=False)
-    purity = evaluate_purity(final_som, convolv_layer_one_train.values, y_train, convolutional_layer=False)
-    purity_results.append(purity)
-    evaluated_data = label_output(som = final_som, data = X_train, targets = y_train, final_convolution=convolv_layer_one_train,convolutional_layer = False, original = True)
-    evaluated_data["correct"] = np.where( (evaluated_data["default_class"] == evaluated_data['evaluated_class']), 1, 0)
-    correct_class = sum(evaluated_data["correct"])/len(evaluated_data.index)
-    class_results.append(correct_class)
-
-statistics.mean(purity_results)
-statistics.mean(class_results)
-
-# Results using node location and distance
-purity_results = []
-class_results = []
-
-for _ in range(10):
-    trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1)
-    convolv_layer_one_train = create_convolution_layer(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
-    final_som = create_train_som(data= convolv_layer_one_train, n_features = convolv_layer_one_train.shape[1], convolutional_layer=True)
-    purity = evaluate_purity(final_som, convolv_layer_one_train, y_train, convolutional_layer=True)
-    purity_results.append(purity)
-    evaluated_data = label_output(som = final_som, data = X_train, targets = y_train, final_convolution=convolv_layer_one_train,convolutional_layer = True, original = True)
-    evaluated_data["correct"] = np.where( (evaluated_data["default_class"] == evaluated_data['evaluated_class']), 1, 0)
-    correct_class = sum(evaluated_data["correct"])/len(evaluated_data.index)
-    class_results.append(correct_class)
-
-statistics.mean(purity_results)
-statistics.mean(class_results)
-
-purity_results = []
-class_results = []
-
-# Results using node location and distance and location normalised
-for _ in range(10):
-    trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1)
-    convolv_layer_one_train = create_convolution_layer(dat  a = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = True)
-    final_som = create_train_som(data= convolv_layer_one_train, n_features = convolv_layer_one_train.shape[1], convolutional_layer=True)
-    purity = evaluate_purity(final_som, convolv_layer_one_train, y_train, convolutional_layer=True)
-    purity_results.append(purity)
-    evaluated_data = label_output(som = final_som, data = X_train, targets = y_train, final_convolution=convolv_layer_one_train,convolutional_layer = True, original = True)
-    evaluated_data["correct"] = np.where( (evaluated_data["default_class"] == evaluated_data['evaluated_class']), 1, 0)
-    correct_class = sum(evaluated_data["correct"])/len(evaluated_data.index)
-    class_results.append(correct_class)
-
-statistics.mean(purity_results)
-statistics.mean(class_results)
+trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1, grid_size=[24,24])
+convolv_layer_one_train = create_convolution_layer_xyw(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
+final_som = create_train_som(data= convolv_layer_one_train, n_features = convolv_layer_one_train.shape[1]*3, convolutional_layer=True, grid_size=[17,17])
+    
+plot_som_win_map(convolv_layer_one_train, labels, final_som, title = "Som Win Map", sampled_layer = True, simple = False)
 
 
-
-
-x = pca_plot(data = X_train, target_array= evaluated_data['evaluated_class'].values)
-x.show()
-
-# Pass our test data through our constructed SOM 
-convolution_layer_test = create_convolution_layer(data=X_test, trained_soms=trained_soms_layer_1, feature_collections = feature_collections_1)
-
-evaluate_purity(final_som, convolution_layer_test, y_test, convolutional_layer=True)
-
-# def pca_plot(som, data, targets, final_convolution = "", convolutional_layer = False):
-
-x = pca_plot(som = final_som, data = X_train,targets = y_train, final_convolution = convolv_layer_one_train, convolutional_layer = True)
 
 # ________________________________ CREATE A SINGLE LAYER MDSOM - Trained on differing featureset ____________________________________
 
@@ -316,8 +204,6 @@ evaluate_purity(final_som, convolution_layer_test, y_test, convolutional_layer=T
 
 
 # ________________________________ CREATE A MULTI LAYER MDSOM ____________________________________
-
-X_test_column_names
 
 # Create our first layer of SOMS
 trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = X_test_column_names)
@@ -389,57 +275,4 @@ convolv_layer_one_test = create_convolution_layer(data = X_test, trained_soms = 
 convolv_layer_two_test = create_convolution_layer(data = convolv_layer_one_test, trained_soms = trained_soms_layer_2,  feature_collections = layer_2_feature_collection, convolutional_layer=True)
 
 evaluate_purity(final_som, convolv_layer_two_test, y_test, convolutional_layer=True)
-
-
-
-
-
-
-
-
-# Now using the values output from our training cololutional layer (I think I got half way through implementing the addition of the node number as well
-# as the distance from the given node) So now my create train SOM has no idea what to do with the god dam outpuut.
-final_som = create_train_som(data=convolv_layer_one_test, n_features = convolv_layer_one_test.shape[1], convolutional_layer=True)
-
-# BOOM. We've got our MDSOM. The key elements are the trained soms and the final SOM. 
-
-# Pass our test data through our constructed SOM 
-convolution_layer_test = create_convolution_layer(data=X_test, trained_soms=trained_soms_layer_1, feature_collections = layer_2_feature_collection)
-
-evaluate_purity(final_som, convolution_layer_test, y_test, convolutional_layer=True)
-
-
-
-
-import plotly.graph_objects as go
-
-win_map = standard_som.win_map(X_train.values)
-size=standard_som.distance_map().shape[0]
-qualities=np.empty((size,size))
-qualities[:]=np.NaN
-for position, values in win_map.items():
-    qualities[position[0], position[1]] = np.mean(abs(values-standard_som.get_weights()[position[0], position[1]]))
-
-layout = go.Layout(title='quality plot')
-fig = go.Figure(layout=layout)
-fig.add_trace(go.Heatmap(z=qualities, colorscale='Viridis'))
-fig.show()
-
-
-
-# Visualising the results
-
-
-
-from sklearn.decomposition import PCA
-pca = PCA(n_components=2)
-principalComponents = pca.fit_transform(x)
-principalDf = pd.DataFrame(data = principalComponents
-             , columns = ['principal component 1', 'principal component 2'])
-
-
-
-
-
-
 

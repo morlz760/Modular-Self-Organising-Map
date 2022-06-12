@@ -43,14 +43,20 @@ for grid_size in grid_size_variations:
         purity_results.append(purity)
     col_results_purity.append(statistics.mean(purity_results))
 
-
 col_results_purity
 
 d = {"sampling_method": "som", 'grid_size': grid_size_variations, 'purity': col_results_purity}
 dfs = pd.DataFrame(data=d)
 dfs["grid_size"] = dfs["grid_size"].apply(lambda x: ' x '.join(map(str, x)))
-fig = px.line(dfs, x="grid_size", y="purity", text="purity",title='Evaluating Purity')
-fig.show()
+
+# Create line chart
+# fig = px.line(dfs, x="grid_size", y="purity", text="purity",title='Evaluating Purity')
+# fig.show()
+
+# Create a winmap to visualise results
+standard_som = create_train_som(data=X_train.values, n_features=X_train.shape[1], grid_size = [24,24], convolutional_layer=False)
+plot_som_win_map(X_train, y_train, standard_som, title = "SOM Win Map - Simple Data", sampled_layer = False)
+
 
 # ________________________________ CREATE SINGLE LAYER DSOM USING ONLY WINNING VALUE ____________________________________
 
@@ -79,8 +85,8 @@ for grid_size in grid_size_variations:
 d = {"sampling_method": "z", 'grid_size': grid_size_variations, 'purity': col_results_purity}
 dfz = pd.DataFrame(data=d)
 dfz["grid_size"] = dfz["grid_size"].apply(lambda x: ' x '.join(map(str, x)))
-fig = px.line(dfz, x="grid_size", y="purity", text="purity",title='Evaluating Purity')
-fig.show()
+# fig = px.line(dfz, x="grid_size", y="purity", text="purity",title='Evaluating Purity')
+# fig.show()
 
 
 ########### Results using node location and distance ################
@@ -102,8 +108,8 @@ for grid_size in grid_size_variations:
 d = {"sampling_method": "zw", 'grid_size': grid_size_variations, 'purity': col_results_purity}
 dfzw = pd.DataFrame(data=d)
 dfzw["grid_size"] = dfzw["grid_size"].apply(lambda x: ' x '.join(map(str, x)))
-fig = px.line(dfzw, x="grid_size", y="purity", text="purity",title='Evaluating Purity')
-fig.show()
+# fig = px.line(dfzw, x="grid_size", y="purity", text="purity",title='Evaluating Purity')
+# fig.show()
 
 ########### Results using node location as coords and distance ################
 col_results_purity = []
@@ -141,8 +147,8 @@ for grid_size in grid_size_variations:
 d = {"sampling_method": "g",'grid_size': grid_size_variations, 'purity': col_results_purity}
 dfg = pd.DataFrame(data=d)
 dfg["grid_size"] = dfg["grid_size"].apply(lambda x: ' x '.join(map(str, x)))
-fig = px.line(dfg, x="grid_size", y="purity", text="purity",title='Evaluating Purity')
-fig.show()
+# fig = px.line(dfg, x="grid_size", y="purity", text="purity",title='Evaluating Purity')
+# fig.show()
 
 
 
@@ -170,7 +176,7 @@ fig.show()
 # Concatenate all the results together
 final_results_complex_data = pd.concat([dfs, dfz, dfzw, dfxyw, dfg, dfgw])
 
-fig
+# Create plot evaluating purity of differing sizes
 fig = px.line(final_results_complex_data, x="grid_size", y="purity",symbol="sampling_method", color='sampling_method',title='Evaluating Purity')
 
 fig.show()
