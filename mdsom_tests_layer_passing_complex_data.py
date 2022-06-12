@@ -27,8 +27,6 @@ y_train = labels
 
 # ________________________________ CREATE A SOM TRAINED OFF ALL VALUES ____________________________________
 
-col_results_purity = []
-
 grid_size_variations = [[6,6], [7,7] ,[8,8], [9,9],[10,10], [12,12], [16,16], [20,20], [24,24]]
 
 col_results_purity = []
@@ -76,8 +74,8 @@ for grid_size in grid_size_variations:
     purity_results = []
     for _ in range(10):
         trained_soms_layer_1 = train_som_layer(data = X_train,feature_collections = feature_collections_1, grid_size=grid_size)
-        convolv_layer_one_train = create_convolution_layer_only_winning_som(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
-        final_som = create_train_som(data= convolv_layer_one_train.values, n_features = convolv_layer_one_train.shape[1], convolutional_layer=False)
+        convolv_layer_one_train = create_sampling_layer_only_winning_som(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
+        final_som = create_train_som(data= convolv_layer_one_train.values, grid_size=[24,24], n_features = convolv_layer_one_train.shape[1], convolutional_layer=False)
         purity = evaluate_purity(final_som, convolv_layer_one_train.values, y_train, convolutional_layer=False)
         purity_results.append(purity)
     col_results_purity.append(statistics.mean(purity_results))
@@ -85,8 +83,8 @@ for grid_size in grid_size_variations:
 d = {"sampling_method": "z", 'grid_size': grid_size_variations, 'purity': col_results_purity}
 dfz = pd.DataFrame(data=d)
 dfz["grid_size"] = dfz["grid_size"].apply(lambda x: ' x '.join(map(str, x)))
-# fig = px.line(dfz, x="grid_size", y="purity", text="purity",title='Evaluating Purity')
-# fig.show()
+fig = px.line(dfz, x="grid_size", y="purity", text="purity",title='Evaluating Purity')
+fig.show()
 
 
 ########### Results using node location and distance ################
@@ -98,14 +96,14 @@ for grid_size in grid_size_variations:
     purity_results = []
     for _ in range(10):
         trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1, grid_size=grid_size)
-        convolv_layer_one_train = create_convolution_layer_zw(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
-        final_som = create_train_som(data= convolv_layer_one_train, n_features = convolv_layer_one_train.shape[1]*2, convolutional_layer=True)
+        convolv_layer_one_train = create_sampling_layer_zw(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
+        final_som = create_train_som(data= convolv_layer_one_train,grid_size=[24,24], n_features = convolv_layer_one_train.shape[1]*2, convolutional_layer=True)
         purity = evaluate_purity(final_som, convolv_layer_one_train, y_train, convolutional_layer=True)
         purity_results.append(purity)
         
     col_results_purity.append(statistics.mean(purity_results))
 
-d = {"sampling_method": "zw", 'grid_size': grid_size_variations, 'purity': col_results_purity}
+d = {"sampling_method": "zd", 'grid_size': grid_size_variations, 'purity': col_results_purity}
 dfzw = pd.DataFrame(data=d)
 dfzw["grid_size"] = dfzw["grid_size"].apply(lambda x: ' x '.join(map(str, x)))
 # fig = px.line(dfzw, x="grid_size", y="purity", text="purity",title='Evaluating Purity')
@@ -119,13 +117,31 @@ for grid_size in grid_size_variations:
     purity_results = []
     for _ in range(10):
         trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1, grid_size=grid_size)
-        convolv_layer_one_train = create_convolution_layer_xyw(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
-        final_som = create_train_som(data= convolv_layer_one_train, n_features = convolv_layer_one_train.shape[1]*3, convolutional_layer=True)
+        convolv_layer_one_train = create_sampling_layer_xy(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
+        final_som = create_train_som(data= convolv_layer_one_train,grid_size=[24,24], n_features = convolv_layer_one_train.shape[1]*2, convolutional_layer=True)
         purity = evaluate_purity(final_som, convolv_layer_one_train, y_train, convolutional_layer=True)
         purity_results.append(purity)
     col_results_purity.append(statistics.mean(purity_results))
 
-d = {"sampling_method": "xyw",'grid_size': grid_size_variations, 'purity': col_results_purity}
+d = {"sampling_method": "xy",'grid_size': grid_size_variations, 'purity': col_results_purity}
+dfxy = pd.DataFrame(data=d)
+dfxy["grid_size"] = dfxy["grid_size"].apply(lambda x: ' x '.join(map(str, x)))
+
+########### Results using node location as coords and distance ################
+col_results_purity = []
+for grid_size in grid_size_variations:
+    print(grid_size)
+    # data_for_evaluation = X_train[X_train.columns[0:n_cols]]
+    purity_results = []
+    for _ in range(10):
+        trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1, grid_size=grid_size)
+        convolv_layer_one_train = create_sampling_layer_xyw(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
+        final_som = create_train_som(data= convolv_layer_one_train,grid_size=[24,24], n_features = convolv_layer_one_train.shape[1]*3, convolutional_layer=True)
+        purity = evaluate_purity(final_som, convolv_layer_one_train, y_train, convolutional_layer=True)
+        purity_results.append(purity)
+    col_results_purity.append(statistics.mean(purity_results))
+
+d = {"sampling_method": "xyd",'grid_size': grid_size_variations, 'purity': col_results_purity}
 dfxyw = pd.DataFrame(data=d)
 dfxyw["grid_size"] = dfxyw["grid_size"].apply(lambda x: ' x '.join(map(str, x)))
 
@@ -138,8 +154,8 @@ for grid_size in grid_size_variations:
     purity_results = []
     for _ in range(10):
         trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1, grid_size=grid_size)
-        convolv_layer_one_train = create_convolution_layer_g(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
-        final_som = create_train_som(data= convolv_layer_one_train, n_features = (grid_size[0]**2), convolutional_layer=True)
+        convolv_layer_one_train = create_sampling_layer_g(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
+        final_som = create_train_som(data= convolv_layer_one_train, grid_size=[24,24] , n_features = (grid_size[0]**2), convolutional_layer=True)
         purity = evaluate_purity(final_som, convolv_layer_one_train, y_train, convolutional_layer=True)
         purity_results.append(purity)
     col_results_purity.append(statistics.mean(purity_results))
@@ -160,21 +176,21 @@ for grid_size in grid_size_variations:
     purity_results = []
     for _ in range(10):
         trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1, grid_size=grid_size)
-        convolv_layer_one_train = create_convolution_layer_g_w(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
-        final_som = create_train_som(data= convolv_layer_one_train, n_features =  (grid_size[0]**2), convolutional_layer=True)
+        convolv_layer_one_train = create_sampling_layer_g_w(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1,   normalise = False)
+        final_som = create_train_som(data= convolv_layer_one_train,grid_size=[24,24], n_features = (grid_size[0]**2), convolutional_layer=True)
         purity = evaluate_purity(final_som, convolv_layer_one_train, y_train, convolutional_layer=True)
         purity_results.append(purity)
     col_results_purity.append(statistics.mean(purity_results))
 
-d = {"sampling_method": "gw",'grid_size': grid_size_variations, 'purity': col_results_purity}
+d = {"sampling_method": "gd",'grid_size': grid_size_variations, 'purity': col_results_purity}
 dfgw = pd.DataFrame(data=d)
 dfgw["grid_size"] = dfgw["grid_size"].apply(lambda x: ' x '.join(map(str, x)))
-fig = px.line(dfgw, x="grid_size", y="purity", text="purity",title='Evaluating Purity')
-fig.show()
+# fig = px.line(dfgw, x="grid_size", y="purity", text="purity",title='Evaluating Purity')
+# fig.show()
 
 
 # Concatenate all the results together
-final_results_complex_data = pd.concat([dfs, dfz, dfzw, dfxyw, dfg, dfgw])
+final_results_complex_data = pd.concat([dfs, dfz, dfzw, dfxy, dfxyw, dfg, dfgw])
 
 # Create plot evaluating purity of differing sizes
 fig = px.line(final_results_complex_data, x="grid_size", y="purity",symbol="sampling_method", color='sampling_method',title='Evaluating Purity')
@@ -216,8 +232,6 @@ fig.update_layout(
         bgcolor='rgba(255, 255, 255, 0)',
         bordercolor='rgba(255, 255, 255, 0)'
     )
-    # paper_bgcolor='rgba(0,0,0,0)',
-    # plot_bgcolor='rgba(0,0,0,0)'
 )
 
 

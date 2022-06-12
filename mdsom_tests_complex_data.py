@@ -122,14 +122,6 @@ dfmsom1["n_features"] = dfmsom1["n_features"].apply(lambda x: x + 1)
 
 plot_som_win_map(convolv_layer_one_train, y_train, final_som, title = "Som Win Map", sampled_layer = True, simple=False)
 
-# Train a MSOM 
-trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1, grid_size=[24,24])
-convolv_layer_one_train = create_convolution_layer_xyw(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections_1, normalise = False)
-final_som = create_train_som(data= convolv_layer_one_train, n_features = convolv_layer_one_train.shape[1]*3, convolutional_layer=True, grid_size=[24,24])
-
-plot_som_win_map(convolv_layer_one_train, y_train, final_som, title = "MSOM Win Map - Complex Data", sampled_layer = True, simple=False)
-
-
 # ----------------------------------- COMBINE all results and Create a chart to evaluate performance ---------------------------
 final_results_mdsom_complex = pd.concat([dfs, dfmsom, dfmsom1])
 fig = px.line(final_results_mdsom_complex, x="n_features", y="purity", color = "structure", title='Evaluating Purity')
@@ -171,6 +163,35 @@ fig.update_layout(
 )
 fig.show()
 
+# ______________________________ CREATE WINMAP PLOTS FOR EVALUATION _________________________________
+
+feature_collections_1 = np.array([['fixed acidity', 'volatile acidity', 'citric acid', 'residual sugar',
+       'chlorides', 'free sulfur dioxide', 'total sulfur dioxide', 'density',
+       'pH', 'sulphates', 'alcohol']])
+
+n_features = 11
+data_for_evaluation = X_train[X_train.columns[0:n_features]]
+standard_som = create_train_som(data= data_for_evaluation.values, n_features = data_for_evaluation.shape[1], convolutional_layer=False, grid_size=[24,24])
+x = plot_som_win_map(data_for_evaluation, y_train, standard_som, title = "SOM Win Map - Complex Data", sampled_layer = False, simple=False)
+x.show()
+
+feature_collections = np.array([feature_collections_1[0][0:n_features]])
+trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections, grid_size=[24,24])
+sampling_layer_one_train = create_sampling_layer_xyw(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections, normalise = False)
+final_som = create_train_som(data= sampling_layer_one_train, n_features = sampling_layer_one_train.shape[1]*3, convolutional_layer=True, grid_size=[24,24])
+
+p2 = plot_som_win_map(sampling_layer_one_train, y_train, final_som, title = "MSOM Single Featureset Win Map - Complex Data", sampled_layer = True, simple=False)
+p2.show()
+
+feature_collections_1 = np.array([[i] for i in X_train.columns ])
+feature_collections = feature_collections_1[0:n_features]
+
+trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections, grid_size=[24,24])
+sampling_layer_one_train = create_sampling_layer_xyw(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections, normalise = False)
+final_som = create_train_som(data= sampling_layer_one_train, n_features = sampling_layer_one_train.shape[1]*3, convolutional_layer=True, grid_size=[24,24])
+
+p3 = plot_som_win_map(sampling_layer_one_train, y_train, final_som, title = "MSOM Multiple Featureset Win Map - Complex Data", sampled_layer = True, simple=False)
+p3.show()
 
 
 trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections_1, grid_size=[24,24])

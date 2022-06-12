@@ -286,8 +286,10 @@ def plot_som_win_map(data, labels, som, title = "Som Win Map", sampled_layer = F
     fig.update_layout(
         title=title,
         template="simple_white",
-        autosize=False,
-        width=750,
+        autosize=True,
+        # width=750,
+        # height=600,
+        width=550,
         height=600,
         yaxis=dict(
             title='Y coordinate',
@@ -316,7 +318,14 @@ def plot_som_win_map(data, labels, som, title = "Som Win Map", sampled_layer = F
             legend=dict(
             title='Allocated Class',
             bgcolor='rgba(255, 255, 255, 0)',
-            bordercolor='rgba(255, 255, 255, 0)'
+            # bordercolor='rgba(255, 255, 255, 1)',
+            orientation="h",
+            yanchor="bottom",
+            y=-0.28,
+            x=0.1,
+            xanchor="left",
+            bordercolor="Black",
+            borderwidth=0.7
         )
     )
-    fig.show()
+    return(fig)

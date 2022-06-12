@@ -174,6 +174,28 @@ fig.update_layout(
 fig.show()
 
 
+# ______________________________ CREATE WINMAP PLOTS FOR EVALUATION _________________________________
+
+feature_collections_1 = pd.array([["area", "perimeter","compactness", "length_kernel","width_kernel","asymmetry_coefficient", "length_kernel_groove"]])
+
+n_features = 2
+feature_collections = np.array([feature_collections_1[0][0:n_features]])
+
+trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections, grid_size=[9,9])
+sampling_layer_one_train = create_sampling_layer_xyw(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections, normalise = False)
+final_som = create_train_som(data= sampling_layer_one_train, n_features = sampling_layer_one_train.shape[1]*3, convolutional_layer=True, grid_size=[9,9])
+
+p1 = plot_som_win_map(sampling_layer_one_train, y_train, final_som, title = "MSOM Win Map - Complex Data", sampled_layer = True, simple=True)
+
+feature_collections_1 = np.array([[i] for i in X_train.columns ])
+feature_collections = feature_collections_1[0:n_features]
+
+trained_soms_layer_1 = train_som_layer(data = X_train, feature_collections = feature_collections, grid_size=[9,9])
+sampling_layer_one_train = create_sampling_layer_xyw(data = X_train, trained_soms = trained_soms_layer_1,  feature_collections = feature_collections, normalise = False)
+final_som = create_train_som(data= sampling_layer_one_train, n_features = sampling_layer_one_train.shape[1]*3, convolutional_layer=True, grid_size=[9,9])
+
+p2 = plot_som_win_map(sampling_layer_one_train, y_train, final_som, title = "MSOM Win Map - Complex Data", sampled_layer = True, simple=True)
+
 
 # Create out feature collections
 feature_collections_1 = np.array([[i] for i in X_train.columns ])
