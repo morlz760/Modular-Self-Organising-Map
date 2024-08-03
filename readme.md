@@ -35,7 +35,7 @@ To add additional Branch Modules to the Trunk Module the data for said modules m
 
 To ensure that the information generated at each SOM level is passed to the subsequent layers in the most information rich manner possible a number of layer sampling methodologies were originally proposed for evaluation. Each methodology offers strengths and weaknesses and this has been taken into account when evaluation was undertaken. There were three broad categories of location evaluate coordinant location, derrived node value, and the entire map as a vector. For each of these methods the winning neuron for a given observation is the core information piece. The winning neuron is determined by finding the neuron with the smallest distance from the given observation. The methods described determine what other information is passed with the winning neuron and how that information is passed.
 
-#### Coordiant location 
+#### Coordiant location $$\bar{S} = \left\{ j_x , j_y \right\}$$
 
 The coordinant location uses the x,y coordinant of the winning neuron in the SOM map. This method has also been expanded to include the distance from the observation to the winning neuron, giving  . This method is desierable as it appears to adequately convey the winning neurons position within the overall map as well as providing the observations relation to that position by including the distance. However, due to the extreme values possible within the x and y coorditnants and the relatively small value often produced for the distance metric information loss may occour.
 
