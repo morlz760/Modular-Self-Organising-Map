@@ -37,7 +37,7 @@ To ensure that the information generated at each SOM level is passed to the subs
 
 #### Coordiant location 
 $$
-\bar{S} = \left\{ j_x , j_y \right\}
+\bar{S} = \{ j_x , j_y \}
 $$
 
 The coordinant location uses the x,y coordinant of the winning neuron in the SOM map. This method has also been expanded to include the distance from the observation to the winning neuron, giving  . This method is desierable as it appears to adequately convey the winning neurons position within the overall map as well as providing the observations relation to that position by including the distance. However, due to the extreme values possible within the x and y coorditnants and the relatively small value often produced for the distance metric information loss may occour.
