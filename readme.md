@@ -15,7 +15,7 @@ The aforementioned elements are all used in conjunction to form a larger process
 4) Train final SOM
 
 ![High level MSOM framework](images/High-level-MSOM-framework.png)
-Figure 1.1 – High level MSOM framework
+*Figure 1.1 – High level MSOM framework*
 
 The process starts with the user defining the featuresets that will be used for each layer. For layer n+1 featuresets can be built by features that are created from the  preceding layer or unadulterated features from the original data. Once the feature sets have been defined the “train SOM layer” process is undertaken, it is used with the initial feature set and the training data. As mentioned above this function trains a SOM based on the given input data and a specified feature set. This enables a SOM to be trained for each region of the given input data, the output will contain a trained SOM for each of the feature sets provided. When constructing a multi-layer MSOM it is important to note this trained SOM layer’s index in the overall hierarchy of the MSOM. The trained SOM layer is then passed with the respective feature set and training data to the “create sampling layer” function. This function extracts coordinants for the winning node for each result along with the distance from the observation to that node. It records the data in a data table using the feature set as the column header. This is returned from the function as the sampling layer. The data from the sampling layer can then either be passed with new defined feature sets to a new SOM layer or it can be passed to a final layer SOM to produce an output. 
 If the user opts to pass the information through a new SOM layer without the introduction of unseen data, the only additional information needed is the new feature sets. The user then follows the process outlined above for as many cycles with differing feature sets as desired until a final output is desired where a final SOM is trained on the output of the final sampling layer as seen in figure 1.2 below.
@@ -28,8 +28,8 @@ If the user opts to pass the information through a new SOM layer without the int
 The user also has the option to expand the sampling layer to include unseen data at any level in the hierarchy of the MSOM. The introduction of unseen data creates a network of SOM’s that need to be managed by the framework. The original and main SOM network is referred to as the Trunk Module while all additional SOM networks added post initial construction are referred to as Branch Modules. 
 To add additional Branch Modules to the Trunk Module the data for said modules must be processed through its own pipeline. The data must pass through a train SOM layer to create the module that is to be appended to the Trunk Module. Due to the method used to pass SOM elements through the layers the new branch simply needs to be appended to the given level elected by the user. This is as simple as adding the newly trained module to the dictionary for that given SOM layer and updating the featureset for the given layer. The sampling layer above that then needs to be re processed to integreate the new Branch into the overall structure. This data can then either be passed through further layers or to a final SOM to create an output. This process can be seen in figure 1.3 below. 
 
-![Multi branch MSOM](Multi-branch-MSOM.png)
-Figure 1.3 – Multi branch MSOM
+![Multi branch MSOM](images/Multi-branch-MSOM.png)
+*Figure 1.3 – Multi branch MSOM*
 
 ### Layer Sampling Methodologies Proposed
 
