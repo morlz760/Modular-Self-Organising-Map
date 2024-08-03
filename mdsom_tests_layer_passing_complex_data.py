@@ -1,4 +1,4 @@
-# Here we evaluate 
+# Here we evaluate the differing methods of passing data to the convolutional layer using a complex dataset.
 
 from mdsom_function_dev_convo_layer import *
 import pandas as pd

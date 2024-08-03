@@ -1,4 +1,4 @@
-# This script is going to be an example of how to construct each of the differing MDSOM structures.
+# This script evalues the performance of the MDSOM on a complex dataset using the finalised convolutional layer method.
 
 from mdsom_functions import *
 import pandas as pd

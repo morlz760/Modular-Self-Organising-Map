@@ -1,3 +1,5 @@
+# This file contains the finalised functions that are used to create and evaluate the MDSOM.
+
 import math
 import numpy as np
 import pandas as pd
