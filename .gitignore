@@ -2,3 +2,6 @@
 deep-som-env/
 visulisations/
 env/
+.code-workspace
+.DS_Store
+__pycache__/

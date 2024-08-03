@@ -7,13 +7,16 @@ The MSOM has taken some inspiration from the DSOM implementation proposed by Liu
 
 ## The MSOM process
 
-The aforementioned elements are all used in conjunction to form a larger process. This process has 4 key steps as shown in figure 1.1
+The aforementioned elements are all used in conjunction to form a larger process. This process has 4 key steps as shown in 
 
-Define feature set
-Train SOM layer
-Create sampling layer
-Train final SOM
+figure 1.1
 
+1) Define feature set
+2) Train SOM layer
+3) Create sampling layer
+4) Train final SOM
+
+![High level MSOM framework](images/High-level-MSOM-framework.png)
 Figure 1.1 – High level MSOM framework
 
 The process starts with the user defining the featuresets that will be used for each layer. For layer n+1 featuresets can be built by features that are created from the  preceding layer or unadulterated features from the original data. Once the feature sets have been defined the “train SOM layer” process is undertaken, it is used with the initial feature set and the training data. As mentioned above this function trains a SOM based on the given input data and a specified feature set. This enables a SOM to be trained for each region of the given input data, the output will contain a trained SOM for each of the feature sets provided. When constructing a multi-layer MSOM it is important to note this trained SOM layer’s index in the overall hierarchy of the MSOM. The trained SOM layer is then passed with the respective feature set and training data to the “create sampling layer” function. This function extracts coordinants for the winning node for each result along with the distance from the observation to that node. It records the data in a data table using the feature set as the column header. This is returned from the function as the sampling layer. The data from the sampling layer can then either be passed with new defined feature sets to a new SOM layer or it can be passed to a final layer SOM to produce an output. 
