@@ -43,7 +43,7 @@ The coordinant location uses the x,y coordinant of the winning neuron in the SOM
 
 #### Derrived node value 
 
-#$\bar{S} = \{ (j_x \cdot \max(k_y)) + j_y \}$#
+$$\bar{S} = \{ (j_x \cdot \max(k_y)) + j_y \}$$
 
 Similar to the coordinant location this method uses the x,y coordinant of the winning neuron in the SOM map however it then transforms this into a single didget value using the max y value of the SOM map $\{ j_x \cdot \max(k_y) + j_y \}$. This method can also be supplemented with the distance from the winning node to the observation to increase information. This method allows a simple intiger value to be passed between layers reducing overall algorythim complexity. However, due to the multi dimensionality of a SOM map information loss may occour by applying this formula.
 
