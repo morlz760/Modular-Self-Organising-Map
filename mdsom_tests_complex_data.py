@@ -1,18 +1,15 @@
-# This script is going to be an example of how to construct each of the differing MDSOM structures.
+# This script evalues the performance of the MDSOM on a complex dataset using the finalised convolutional layer method.
 
 from mdsom_functions import *
 import pandas as pd
-# from minisom import MiniSom
 import numpy as np
 from sklearn.model_selection import train_test_split
-# from sklearn.metrics import classification_report
 from sklearn import preprocessing
 import statistics
 import plotly.express as px
 
 data = pd.read_csv("../data/winequality-red.csv", sep = ";")
 labels = data['quality'].values
-# label_names = {1:'Kama', 2:'Rosa', 3:'Canadian'}
 d = data[data.columns[0:11]]
 new_d = data[data.columns[6:7]]
 
@@ -23,12 +20,6 @@ d_normalised = pd.DataFrame(d, columns=names)
 
 X_train = d_normalised
 y_train = labels
-
-
-# Things we need to think about
-# - Cross validation
-# - Visualisation
-# - Evaluation in terms of nodes
 
 # Our benchmark SOM will always have the same number of nodes as our final SOM .
 
@@ -97,6 +88,7 @@ plot_som_win_map(sampling_layer_one_train, y_train, final_som, title = "MSOM Win
 feature_collections_1 = np.array([['fixed acidity', 'volatile acidity', 'citric acid', 'residual sugar',
        'chlorides', 'free sulfur dioxide', 'total sulfur dioxide', 'density',
        'pH', 'sulphates', 'alcohol']])
+
 ######## Results using only node location as single value index ##############
 n_cols = 2
 np.array(list(feature_collections_1[0][0:n_cols]))
@@ -283,8 +275,6 @@ layer_2ab_feature_collection = pd.array([["area", "perimeter"], ["compactness", 
 
 # Create our new convolutional layer
 convolv_layer_2_complete_train = create_convolution_layer(data = convolv_layer_one_train_ab, trained_soms = trained_soms_layer_2_complete,  feature_collections = layer_2ab_feature_collection)
-
-# Do i create a merge function?
 
 # Create the final layer
 final_som = create_train_som(data=convolv_layer_2_complete_train, n_features = convolv_layer_2_complete_train.shape[1], convolutional_layer=True)

@@ -1,11 +1,9 @@
-# This script 
+# This script evaluates the differing methods of passing data to the convolutional layer using a complex dataset.
 
 from mdsom_function_dev_convo_layer import *
 import pandas as pd
-# from minisom import MiniSom
 import numpy as np
 from sklearn.model_selection import train_test_split
-# from sklearn.metrics import classification_report
 from sklearn import preprocessing
 import statistics
 import inspect

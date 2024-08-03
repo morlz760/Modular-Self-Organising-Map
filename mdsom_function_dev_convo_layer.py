@@ -1,5 +1,6 @@
-import math
+# This script contains a number of differing implementations for the convolutional layer of the MDSOM as well as supporting functions.
 
+import math
 import numpy as np
 import pandas as pd
 from minisom import MiniSom
