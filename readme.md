@@ -66,3 +66,7 @@ Similar to the coordinant location this method uses the x,y coordinant of the wi
 $$\bar{S} = \{ 0_1, \ldots, 1_{\max(k_y) \cdot (j_y - 1) + (j_x - 1)}, \ldots, 0_{\max(k_y) \cdot \max(k_y)} \}$$
 
 The entire map vector looks to eliminate all potential information loss by passing the entire SOM map with the winning node location flagged as a single vector. The winning node location is determined by finding the max y value for SOM k and the winning node j’s x,y coordingants and then applying the following formula $\max(k_y) \cdot (j_y - 1) + (j_x - 1)$ to determine the index value, in which a flag is inserted in a vector of 0’s who’s length is determined by $\max(k_y)^2$. This vector is passed in its entierety. A variation of this is also proposed whereby the flag value is replaced by the distance from the observation to the winning node. The main drawback of this method is the potential size of vectors that may be passed having to have an entry for each coordinant in the SOM. 
+
+## Contact / contribution
+
+If you're interested in learning more about the process or would like to take a look at the paper behind it please reach out via linkedIn: https://www.linkedin.com/in/morley-pemberton/
