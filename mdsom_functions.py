@@ -1,5 +1,4 @@
 import math
-
 import numpy as np
 import pandas as pd
 from minisom import MiniSom
@@ -20,20 +19,6 @@ def classify(som, x_test, x_train, y_train):
             result.append(default_class)
     return result
 
-# Create and train a SOM this is the old version that works, 
-# Below I'm going to add some functionality that will allow it 
-# to ingest the DF from a convolv layer.
-# def create_train_som(data, n_features):
-#     # Create SOM dimensions
-#     som_nurons = int((math.sqrt(5*math.sqrt(n_features))))*2
-#     x = som_nurons
-#     y = som_nurons
-#     #Create and train SOM
-#     som = MiniSom(x, y, n_features, sigma=0.3, learning_rate=0.5) # initialization of x X y som
-#     som.random_weights_init(data)
-#     som.train_random(data,100, verbose=False) # training with 100 iterations
-#     return som
-
 def unnest_data(data):
         values = data.values
         unnested_data = np.array([np.concatenate(i) for i in values])
@@ -48,7 +33,6 @@ def create_train_som(data, n_features, grid_size = [8,8], convolutional_layer = 
     else:
         data = data
     # Create SOM dimensions
-    # som_nurons = int((math.sqrt(5*math.sqrt(n_samples))))
     x = grid_size[0]
     y = grid_size[1]
     print("Som Neurons", x*y)

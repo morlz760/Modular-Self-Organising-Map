@@ -1,18 +1,15 @@
-# This script is going to be an example of how to construct each of the differing MDSOM structures.
+# Here we evaluate 
 
 from mdsom_function_dev_convo_layer import *
 import pandas as pd
-# from minisom import MiniSom
 import numpy as np
 from sklearn.model_selection import train_test_split
-# from sklearn.metrics import classification_report
 from sklearn import preprocessing
 import statistics
 import plotly.express as px
 
 data = pd.read_csv("../data/winequality-red.csv", sep = ";")
 labels = data['quality'].values
-# label_names = {1:'Kama', 2:'Rosa', 3:'Canadian'}
 d = data[data.columns[0:11]]
 new_d = data[data.columns[6:7]]
 
@@ -59,11 +56,10 @@ plot_som_win_map(X_train, y_train, standard_som, title = "SOM Win Map - Simple D
 # ________________________________ CREATE SINGLE LAYER DSOM USING ONLY WINNING VALUE ____________________________________
 
 # Create simple feature collections
-# feature_collections_1 = np.array([[i] for i in X_train.columns ])
 feature_collections_1 = np.array([['fixed acidity', 'volatile acidity', 'citric acid', 'residual sugar',
        'chlorides', 'free sulfur dioxide', 'total sulfur dioxide', 'density',
        'pH', 'sulphates', 'alcohol']])
-# feature_collections_1 = pd.array([["area", "perimeter","compactness", "length_kernel","width_kernel","asymmetry_coefficient", "length_kernel_groove"]])
+
 ######## Results using only node location as single value index ##############
 grid_size_variations = [[6,6], [7,7] ,[8,8], [9,9],[10,10], [12,12], [16,16], [20,20], [24,24]]
 
@@ -165,8 +161,6 @@ dfg = pd.DataFrame(data=d)
 dfg["grid_size"] = dfg["grid_size"].apply(lambda x: ' x '.join(map(str, x)))
 # fig = px.line(dfg, x="grid_size", y="purity", text="purity",title='Evaluating Purity')
 # fig.show()
-
-
 
 ########### Results using distance to observation in vector of 0's ################
 col_results_purity = []
