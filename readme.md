@@ -6,9 +6,9 @@ The repo contains code development code that was used to validate this proof of 
 
 ### Instalation
 
-You'll need python to run this code
-I reccomend using a virtual environment to manage your dependencies
-Use `pip install requirements.txt` to install the dependencies
+- You'll need python to run this code
+- I reccomend using a virtual environment to manage your dependencies
+- Use `pip install requirements.txt` to install the dependencies
 
 ### Usage
 
@@ -49,19 +49,19 @@ To add additional Branch Modules to the Trunk Module the data for said modules m
 
 To ensure that the information generated at each SOM level is passed to the subsequent layers in the most information rich manner possible a number of layer sampling methodologies were originally proposed for evaluation. Each methodology offers strengths and weaknesses and this has been taken into account when evaluation was undertaken. There were three broad categories of location evaluate coordinant location, derrived node value, and the entire map as a vector. For each of these methods the winning neuron for a given observation is the core information piece. The winning neuron is determined by finding the neuron with the smallest distance from the given observation. The methods described determine what other information is passed with the winning neuron and how that information is passed.
 
-##### Coordiant location 
+#### Coordiant location 
 
 $$\bar{S} = \{ j_x , j_y \}$$
 
 The coordinant location uses the x,y coordinant of the winning neuron in the SOM map. This method has also been expanded to include the distance from the observation to the winning neuron, giving $\bar{S} = \{ j_x , j_y , j_d \}$. This method is desierable as it appears to adequately convey the winning neurons position within the overall map as well as providing the observations relation to that position by including the distance. However, due to the extreme values possible within the x and y coorditnants and the relatively small value often produced for the distance metric information loss may occour.
 
-##### Derrived node value 
+#### Derrived node value 
 
 $$\bar{S} = \{ (j_x \cdot \max(k_y)) + j_y \}$$
 
 Similar to the coordinant location this method uses the x,y coordinant of the winning neuron in the SOM map however it then transforms this into a single didget value using the max y value of the SOM map $\{ j_x \cdot \max(k_y) + j_y \}$. This method can also be supplemented with the distance from the winning node to the observation to increase information. This method allows a simple intiger value to be passed between layers reducing overall algorythim complexity. However, due to the multi dimensionality of a SOM map information loss may occour by applying this formula.
 
-##### Entire map vector
+#### Entire map vector
 
 $$\bar{S} = \{ 0_1, \ldots, 1_{\max(k_y) \cdot (j_y - 1) + (j_x - 1)}, \ldots, 0_{\max(k_y) \cdot \max(k_y)} \}$$
 
